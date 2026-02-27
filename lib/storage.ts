@@ -1,8 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 
+// Use the service role key so server-side uploads bypass RLS.
+// This key is never exposed to the client (no NEXT_PUBLIC_ prefix).
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 const BUCKET = "native-images";
