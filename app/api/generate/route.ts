@@ -28,25 +28,31 @@ CRITICAL IMAGE RULES — these MUST be followed or the image fails:
 - NO artificial UI elements or borders
 - Prompts must be purely visual and scene-descriptive
 
-IPHONE PROMPT FORMULA — build every prompt with these layers:
+IPHONE PROMPT FORMULA — build every prompt with all 7 of these layers:
 
-1. SHOT TYPE: Choose one — "Close-up", "Medium shot waist-up", "Bird's eye overhead", "POV first-person looking down", "Over-the-shoulder", "Wide establishing shot"
+1. SHOT TYPE: "Close-up", "Medium shot waist-up", "Bird's eye overhead", "POV first-person looking down", "Over-the-shoulder", or "Slightly high angle looking down at subject"
 
-2. SUBJECT + ACTION: Exactly who is doing exactly what. Be specific — "30-something woman in a grey cotton t-shirt pressing two fingers to her jaw" not just "woman with pain".
+2. SUBJECT + ACTION: Specific person + specific action + specific clothing.
+   Bad: "woman in pain" — Good: "early-30s woman in a faded grey cotton t-shirt pressing two fingers to her jaw, eyes slightly squinted"
 
-3. ENVIRONMENT + PROPS: Exact setting with real grounding details — "white Ikea bathroom counter, half-used toothpaste tube, steamy mirror, morning light". Props must look like items a real person already owns, not art-directed.
+3. SUBJECT REALISM — always include ALL of these for human subjects:
+   - Skin: "natural skin grain with visible pores" — NOT airbrushed
+   - Expression: "posed but naturalistic — genuine [emotion], not exaggerated"
+   - Hands: describe exactly what each hand is doing — "right hand loosely holding product, fingers slightly curled, relaxed grip"
+   - Body angle: "body turned 3/4 to camera, head facing toward lens, shoulders relaxed"
 
-4. LIGHTING (most important for realism):
-   - Specify direction: from the left, overhead, backlit, from a window
-   - Specify quality: soft diffused, harsh direct, mixed ambient
-   - Specify temperature: warm golden (morning/golden hour), cool neutral (overcast/north-facing window), warm orange (bathroom vanity bulbs)
-   - Examples: "soft warm window light from the right, slightly diffused through frosted glass" / "overhead bathroom fluorescent, cool white, creating slight under-eye shadows" / "golden hour natural light streaming in from a west-facing window"
+4. SCENE DEPTH — three layers:
+   - FOREGROUND: 1-2 small real props partially in frame, slightly blurred — "half-drunk glass of water at left edge of frame"
+   - MIDGROUND: subject + their main interaction with the product/problem
+   - BACKGROUND: real space with depth — "soft-focus bathroom doorway", "blurred window with morning light 2 metres behind"
 
-5. TECHNICAL SPECS — always include this exact block, adjusting ISO for the scene:
-   "shot on iPhone, 28mm wide-angle lens, f/1.8 aperture, ISO 400 (bright scenes) or ISO 800–1600 (indoor/dim scenes), subject in sharp focus, background naturally soft, slight digital noise in shadow areas, warm color temperature, minor chromatic aberration at edges"
+5. LIGHTING — name every source, specify direction + quality + temperature + shadows:
+   "morning window light from the left + overhead bathroom LED, soft diffused, warm neutral, soft gradual shadow edges under jawline and along left side of neck, gentle highlight on hair crown and product surface"
 
-6. COMPOSITION + FEEL:
-   "candid documentary framing, rule of thirds, slightly off-center, handheld micro-shake, organic social media photo, warm color grading, subtle vignette, no post-processing or filters visible"
+6. TECHNICAL BLOCK — include verbatim, adjust ISO only:
+   "shot on iPhone, 28mm wide-angle lens, f/2.8 aperture, ISO 400 (bright/outdoor) or ISO 800 (indoor/dim), subject tack-sharp, background slightly soft, minimal digital noise with slight grain in shadows, warm color temperature, slight chromatic aberration at frame edges, asymmetric rule-of-thirds composition"
+
+7. POST-PROCESSING: "warm color grading, slight contrast boost, gentle skin smoothing without plastic effect, subtle vignette, organic social media photo"
 
 CLEAN ENVIRONMENT RULES:
 - All environments must be CLEAN and LIVED-IN — a real person's tidy home, bathroom, car, or workspace
@@ -58,13 +64,13 @@ After receiving the image URL from generateImage, you MUST call reviewImage.
 Examine the image carefully against the Native Ad Performance Checklist.
 
 NATIVE AD PERFORMANCE CHECKLIST:
-1. Genuinely looks like a real person took it on an iPhone — not a render, not a studio shot, not a "filter applied" look
-2. Technical iPhone markers present: natural bokeh, slight digital noise, warm color cast, candid framing
-3. Clear emotional hook — visceral, relatable, or scroll-stopping
-4. Subject directly matches the requested concept
-5. No text overlays, timestamps, watermarks, or AI-looking artifacts
-6. No obvious AI artifacts (extra fingers, impossible geometry, garbled background text)
-7. Would a real person plausibly post this exact photo on their Instagram or TikTok?
+1. Genuinely looks like a real iPhone snapshot — not a render, not a studio shot with a filter applied
+2. Technical iPhone markers visible: natural background bokeh (f/2.8 compression), slight digital noise in shadows, warm color cast, candid slightly-off-center framing
+3. Subject skin looks human — visible pores or natural skin texture, NOT airbrushed or porcelain
+4. Scene has depth — foreground props, subject in midground, background with real spatial depth (even if blurred)
+5. Emotional hook is clear and visceral — scroll-stopping, relatable, genuine
+6. Subject directly and specifically matches the requested concept
+7. No text overlays, timestamps, watermarks, or obvious AI artifacts (extra fingers, impossible geometry)
 
 SCORING: Rate each criterion 0 or 1. Total score out of 7.
 - Score 6-7: PASSES — call reviewImage with passes=true
