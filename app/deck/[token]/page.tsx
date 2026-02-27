@@ -16,7 +16,7 @@ export default async function DeckPage({
 }) {
   const { token } = await params;
   const deck = await getDeckByToken(token);
-  if (!deck) notFound();
+  if (!deck || deck.active === 0) notFound();
 
   const imageIds: string[] = JSON.parse(deck.image_ids || "[]");
   const images = await getGeneratedImagesByIds(imageIds);

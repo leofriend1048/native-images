@@ -94,25 +94,37 @@ function GalleryCard({
     <>
       <div
         className={`group relative rounded-xl overflow-hidden border bg-muted transition-all duration-150 ${
-          selected ? "ring-2 ring-primary border-primary" : "hover:border-foreground/20"
+          selected
+            ? "ring-2 ring-primary border-primary"
+            : "hover:border-foreground/20"
         }`}
       >
-        {/* Selection checkbox */}
+        {/* Selection checkbox — always visible, stronger on hover/selected */}
         <button
-          className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-150 ${
+          className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-150 shadow-[0_1px_4px_rgba(0,0,0,0.5)] ${
             selected
-              ? "bg-primary border-primary opacity-100"
-              : "bg-background/80 border-white/60 opacity-0 group-hover:opacity-100"
+              ? "bg-primary border-primary scale-110"
+              : "bg-black/40 border-white/80 opacity-60 group-hover:opacity-100 group-hover:bg-black/60 group-hover:scale-105"
           }`}
           onClick={onToggleSelect}
+          title={selected ? "Deselect" : "Select"}
         >
-          {selected && <CheckCircleIcon className="h-3.5 w-3.5 text-primary-foreground" />}
+          {selected
+            ? <CheckCircleIcon className="h-3.5 w-3.5 text-primary-foreground" />
+            : <span className="w-2.5 h-2.5 rounded-full border border-white/70" />
+          }
         </button>
 
-        {/* Image */}
+        {/* Selected overlay */}
+        {selected && (
+          <div className="absolute inset-0 z-[1] bg-primary/10 pointer-events-none" />
+        )}
+
+        {/* Image — click to select, double-click to fullscreen */}
         <div
-          className="cursor-zoom-in"
-          onClick={() => setFullscreen(true)}
+          className="cursor-pointer"
+          onClick={onToggleSelect}
+          onDoubleClick={(e) => { e.stopPropagation(); setFullscreen(true); }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -330,6 +342,12 @@ export default function GalleryPage() {
                 <GalleryHorizontalIcon className="h-3.5 w-3.5" />
                 Gallery
               </Button>
+              <Link href="/decks">
+                <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
+                  <LayersIcon className="h-3.5 w-3.5" />
+                  Decks
+                </Button>
+              </Link>
             </div>
           </div>
           <div className="flex items-center gap-1">

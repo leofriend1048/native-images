@@ -59,9 +59,14 @@ export async function initSchema() {
       token TEXT UNIQUE NOT NULL,
       title TEXT NOT NULL,
       image_ids TEXT NOT NULL DEFAULT '[]',
+      active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
   `);
+  // Migration: add active column to existing installations
+  await client.execute(
+    `ALTER TABLE creative_decks ADD COLUMN active INTEGER NOT NULL DEFAULT 1`
+  ).catch(() => {/* column already exists — safe to ignore */});
 }
 
 export interface User {
@@ -316,6 +321,7 @@ export interface CreativeDeck {
   token: string;
   title: string;
   image_ids: string; // JSON array of generated_image ids
+  active: number;    // 1 = live, 0 = deactivated
   created_at: string;
 }
 
@@ -347,4 +353,18 @@ export async function getDecksByUser(userId: string): Promise<CreativeDeck[]> {
     args: [userId],
   });
   return result.rows as unknown as CreativeDeck[];
+}
+
+export async function deleteDeckById(id: string): Promise<void> {
+  await client.execute({
+    sql: `DELETE FROM creative_decks WHERE id = ?`,
+    args: [id],
+  });
+}
+
+export async function setDeckActive(id: string, active: boolean): Promise<void> {
+  await client.execute({
+    sql: `UPDATE creative_decks SET active = ? WHERE id = ?`,
+    args: [active ? 1 : 0, id],
+  });
 }

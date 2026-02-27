@@ -1,6 +1,13 @@
 import { getSession } from "@/lib/auth";
-import { createDeck, getGeneratedImagesByIds } from "@/lib/db";
+import { createDeck, getDecksByUser, getGeneratedImagesByIds } from "@/lib/db";
 import { nanoid } from "nanoid";
+
+export async function GET() {
+  const session = await getSession();
+  if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const decks = await getDecksByUser(session.userId);
+  return Response.json({ decks });
+}
 
 export async function POST(req: Request) {
   const session = await getSession();
@@ -45,6 +52,7 @@ export async function POST(req: Request) {
     token,
     title: title.trim(),
     image_ids: JSON.stringify(ownedIds),
+    active: 1,
   });
 
   return new Response(JSON.stringify({ deck, token }), {
