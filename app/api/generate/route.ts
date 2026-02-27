@@ -4,6 +4,8 @@ import Replicate from "replicate";
 import { z } from "zod/v4";
 import { getSession } from "@/lib/auth";
 import { mirrorUrlToStorage, uploadDataUrlToStorage } from "@/lib/storage";
+import { insertGeneratedImage, initSchema } from "@/lib/db";
+import { nanoid } from "nanoid";
 
 export const maxDuration = 300;
 
@@ -80,6 +82,9 @@ export async function POST(req: Request) {
     });
   }
 
+  // Ensure schema exists (safe no-op if tables already present)
+  await initSchema().catch(() => {});
+
   const {
     messages,
     settings,
@@ -88,6 +93,7 @@ export async function POST(req: Request) {
     settings: {
       model?: string;
       aspect_ratio: string;
+      batch_count?: number;
       // Google
       resolution: string;
       output_format: string;
@@ -96,8 +102,12 @@ export async function POST(req: Request) {
       size?: string;
       // Ideogram
       magic_prompt_option?: string;
+      // Chat context for image persistence
+      chatId?: string | null;
     };
   } = await req.json();
+
+  const batchCount = Math.min(Math.max(settings.batch_count ?? 1, 1), 4);
 
   // Extract reference image URLs attached by the user (most recent message with files).
   // We do this server-side so Replicate always receives them even if Claude forgets to
@@ -138,7 +148,12 @@ export async function POST(req: Request) {
     }
   }
 
-  const modelMessages = await convertToModelMessages(messages);
+  const modelMessages = await convertToModelMessages(messages, {
+    // Drop any tool call that has no result yet (e.g. approveRetry still
+    // awaiting user input) instead of forwarding an incomplete call to Claude,
+    // which would throw "Tool result is missing".
+    ignoreIncompleteToolCalls: true,
+  });
   console.log("[generate] model messages:", JSON.stringify(
     modelMessages.map((m) => ({
       role: m.role,
@@ -204,7 +219,7 @@ export async function POST(req: Request) {
     tools: {
       generateImage: {
         description:
-          "Generate a native-style ad image using the provided prompt via Replicate Nano Banana Pro",
+          "Generate a native-style ad image using the provided prompt via Replicate",
         inputSchema: z.object({
           prompt: z
             .string()
@@ -226,82 +241,103 @@ export async function POST(req: Request) {
           try {
 
             // Merge Claude-provided URLs with server-extracted reference images.
-            // Only accept data: URLs from Claude — HTTP URLs it hallucinates or
-            // infers from image metadata (e.g. CDN origins) will 404 when
-            // Replicate tries to fetch them. Our server-extracted referenceImages
-            // are always data: URLs so they are unconditionally trusted.
             const allImages = [
               ...(image_input ?? []).filter((url) => url.startsWith("data:")),
               ...referenceImages,
             ].filter((url, idx, arr) => arr.indexOf(url) === idx);
 
-            if (modelId === "bytedance/seedream-4.5") {
-              const seedreamValidRatios = ["match_input_image","1:1","4:3","3:4","16:9","9:16","3:2","2:3","21:9"];
-              const seedreamRatio = seedreamValidRatios.includes(settings.aspect_ratio)
-                ? settings.aspect_ratio
-                : "4:3"; // fallback: nearest to 4:5
-              input = {
-                prompt,
-                aspect_ratio: seedreamRatio,
-                size: settings.size || "2K",
-                max_images: 1,
-                sequential_image_generation: "disabled",
-              };
-              if (allImages.length > 0) {
-                input.image_input = allImages.slice(0, 14);
+            const buildInput = (aspectRatio?: string): Record<string, unknown> => {
+              if (modelId === "bytedance/seedream-4.5") {
+                const seedreamValidRatios = ["match_input_image","1:1","4:3","3:4","16:9","9:16","3:2","2:3","21:9"];
+                const seedreamRatio = seedreamValidRatios.includes(aspectRatio ?? settings.aspect_ratio)
+                  ? (aspectRatio ?? settings.aspect_ratio)
+                  : "4:3";
+                const inp: Record<string, unknown> = {
+                  prompt,
+                  aspect_ratio: seedreamRatio,
+                  size: settings.size || "2K",
+                  max_images: 1,
+                  sequential_image_generation: "disabled",
+                };
+                if (allImages.length > 0) inp.image_input = allImages.slice(0, 14);
+                return inp;
+              } else if (modelId === "ideogram-ai/ideogram-v3-turbo") {
+                const inp: Record<string, unknown> = {
+                  prompt,
+                  aspect_ratio: aspectRatio ?? settings.aspect_ratio ?? "4:5",
+                  magic_prompt_option: settings.magic_prompt_option || "Auto",
+                };
+                if (allImages.length > 0) inp.style_reference_images = allImages.slice(0, 3);
+                return inp;
+              } else {
+                // Google Nano Banana Pro / NB2
+                const isNB2 = modelId === "google/nano-banana-2";
+                // NB2 only supports up to 2K — clamp silently to avoid "Prediction failed"
+                const rawRes = settings.resolution || "1K";
+                const resolution = isNB2 && rawRes === "4K" ? "2K" : rawRes;
+                const inp: Record<string, unknown> = {
+                  prompt,
+                  aspect_ratio: aspectRatio ?? settings.aspect_ratio ?? "4:5",
+                  resolution,
+                  output_format: settings.output_format || "jpg",
+                };
+                if (!isNB2) {
+                  inp.safety_filter_level = settings.safety_filter_level || "block_only_high";
+                }
+                if (allImages.length > 0) inp.image_input = allImages.slice(0, 14);
+                return inp;
               }
-            } else if (modelId === "ideogram-ai/ideogram-v3-turbo") {
-              input = {
-                prompt,
-                aspect_ratio: settings.aspect_ratio || "4:5",
-                magic_prompt_option: settings.magic_prompt_option || "Auto",
-              };
-              // Ideogram uses style_reference_images, not image_input
-              if (allImages.length > 0) {
-                input.style_reference_images = allImages.slice(0, 3);
-              }
-            } else {
-              // Google Nano Banana Pro / NB2
-              const isNB2 = modelId === "google/nano-banana-2";
-              input = {
-                prompt,
-                aspect_ratio: settings.aspect_ratio || "4:5",
-                resolution: settings.resolution || "1K",
-                output_format: settings.output_format || "jpg",
-              };
-              if (!isNB2) {
-                input.safety_filter_level =
-                  settings.safety_filter_level || "block_only_high";
-              }
-              if (allImages.length > 0) {
-                input.image_input = allImages.slice(0, 14);
-              }
-            }
+            };
 
-            const output = await replicate.run(modelId as `${string}/${string}`, {
-              input,
-            });
+            input = buildInput();
 
-            // Seedream returns an array of URLs; all other models return a string
-            const replicateUrl = Array.isArray(output)
-              ? (output as string[])[0]
-              : typeof output === "string"
-              ? output
-              : String(output);
+            // Run batchCount generations in parallel
+            const runs = Array.from({ length: batchCount }, () =>
+              replicate.run(modelId as `${string}/${string}`, { input })
+            );
+            const outputs = await Promise.all(runs);
 
-            // Mirror to Supabase so the URL never expires
+            const replicateUrls = outputs.map((output) =>
+              Array.isArray(output)
+                ? (output as string[])[0]
+                : typeof output === "string"
+                ? output
+                : String(output)
+            );
+
+            // Mirror all to Supabase in parallel
             const ext = (input.output_format as string | undefined) ?? "jpg";
-            const storagePath = `generated/${session.userId}/${Date.now()}.${ext}`;
-            let imageUrl = replicateUrl;
-            try {
-              imageUrl = await mirrorUrlToStorage(replicateUrl, storagePath);
-            } catch (err) {
-              console.error("Failed to mirror image to Supabase, using Replicate URL:", err);
-            }
+            const mirroredUrls = await Promise.all(
+              replicateUrls.map(async (url, idx) => {
+                const storagePath = `generated/${session.userId}/${Date.now()}-${idx}.${ext}`;
+                try {
+                  return await mirrorUrlToStorage(url, storagePath);
+                } catch (err) {
+                  console.error("Failed to mirror image to Supabase:", err);
+                  return url;
+                }
+              })
+            );
+
+            // Persist all generated images to the DB (non-blocking, best effort)
+            Promise.all(
+              mirroredUrls.map((url) =>
+                insertGeneratedImage({
+                  id: nanoid(),
+                  user_id: session.userId,
+                  chat_id: settings.chatId ?? null,
+                  url,
+                  prompt,
+                  model: modelId,
+                  aspect_ratio: (input.aspect_ratio as string) ?? settings.aspect_ratio,
+                }).catch((err) => console.error("Failed to persist generated image:", err))
+              )
+            );
 
             return {
               success: true,
-              imageUrl,
+              imageUrl: mirroredUrls[0],
+              imageUrls: mirroredUrls,
               enhancedPrompt: prompt,
               settings: {
                 aspect_ratio: input.aspect_ratio as string,

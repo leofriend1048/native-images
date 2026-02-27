@@ -1,13 +1,19 @@
-import { createClient } from "@supabase/supabase-js";
-
-// Use the service role key so server-side uploads bypass RLS.
-// This key is never exposed to the client (no NEXT_PUBLIC_ prefix).
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const BUCKET = "native-images";
+
+// Lazily initialised so the module can be imported at build time without
+// env vars present (Vercel build step doesn't inject runtime secrets).
+let _supabase: SupabaseClient | null = null;
+function getSupabase(): SupabaseClient {
+  if (!_supabase) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) throw new Error("Supabase env vars are not configured.");
+    _supabase = createClient(url, key);
+  }
+  return _supabase;
+}
 
 /**
  * Upload a file to the native-images Supabase bucket and return the public URL.
@@ -20,6 +26,7 @@ export async function uploadToStorage(
   body: Buffer | Blob | ArrayBuffer,
   contentType: string
 ): Promise<string> {
+  const supabase = getSupabase();
   const { error } = await supabase.storage
     .from(BUCKET)
     .upload(path, body, { contentType, upsert: true });

@@ -33,6 +33,34 @@ export async function initSchema() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS generated_images (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      chat_id TEXT REFERENCES chats(id) ON DELETE SET NULL,
+      url TEXT NOT NULL,
+      prompt TEXT NOT NULL,
+      model TEXT NOT NULL,
+      aspect_ratio TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS user_personas (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS creative_decks (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token TEXT UNIQUE NOT NULL,
+      title TEXT NOT NULL,
+      image_ids TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 }
 
@@ -194,4 +222,129 @@ export async function deleteChat(id: string): Promise<void> {
     sql: "DELETE FROM chats WHERE id = ?",
     args: [id],
   });
+}
+
+// ─── Generated Images ─────────────────────────────────────────────────────────
+
+export interface GeneratedImage {
+  id: string;
+  user_id: string;
+  chat_id: string | null;
+  url: string;
+  prompt: string;
+  model: string;
+  aspect_ratio: string;
+  created_at: string;
+}
+
+export async function insertGeneratedImage(
+  img: Omit<GeneratedImage, "created_at">
+): Promise<void> {
+  await client.execute({
+    sql: `INSERT INTO generated_images (id, user_id, chat_id, url, prompt, model, aspect_ratio)
+          VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    args: [img.id, img.user_id, img.chat_id, img.url, img.prompt, img.model, img.aspect_ratio],
+  });
+}
+
+export async function getGeneratedImagesByUser(
+  userId: string
+): Promise<GeneratedImage[]> {
+  const result = await client.execute({
+    sql: `SELECT * FROM generated_images WHERE user_id = ? ORDER BY created_at DESC`,
+    args: [userId],
+  });
+  return result.rows as unknown as GeneratedImage[];
+}
+
+export async function getGeneratedImagesByIds(
+  ids: string[]
+): Promise<GeneratedImage[]> {
+  if (ids.length === 0) return [];
+  const placeholders = ids.map(() => "?").join(",");
+  const result = await client.execute({
+    sql: `SELECT * FROM generated_images WHERE id IN (${placeholders})`,
+    args: ids,
+  });
+  return result.rows as unknown as GeneratedImage[];
+}
+
+// ─── User Personas ────────────────────────────────────────────────────────────
+
+export interface UserPersona {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string;
+  created_at: string;
+}
+
+export async function getPersonasByUser(userId: string): Promise<UserPersona[]> {
+  const result = await client.execute({
+    sql: `SELECT * FROM user_personas WHERE user_id = ? ORDER BY created_at DESC`,
+    args: [userId],
+  });
+  return result.rows as unknown as UserPersona[];
+}
+
+export async function createPersona(
+  persona: Omit<UserPersona, "created_at">
+): Promise<UserPersona> {
+  await client.execute({
+    sql: `INSERT INTO user_personas (id, user_id, name, description) VALUES (?, ?, ?, ?)`,
+    args: [persona.id, persona.user_id, persona.name, persona.description],
+  });
+  const result = await client.execute({
+    sql: `SELECT * FROM user_personas WHERE id = ?`,
+    args: [persona.id],
+  });
+  return result.rows[0] as unknown as UserPersona;
+}
+
+export async function deletePersona(id: string, userId: string): Promise<void> {
+  await client.execute({
+    sql: `DELETE FROM user_personas WHERE id = ? AND user_id = ?`,
+    args: [id, userId],
+  });
+}
+
+// ─── Creative Decks ───────────────────────────────────────────────────────────
+
+export interface CreativeDeck {
+  id: string;
+  user_id: string;
+  token: string;
+  title: string;
+  image_ids: string; // JSON array of generated_image ids
+  created_at: string;
+}
+
+export async function createDeck(
+  deck: Omit<CreativeDeck, "created_at">
+): Promise<CreativeDeck> {
+  await client.execute({
+    sql: `INSERT INTO creative_decks (id, user_id, token, title, image_ids) VALUES (?, ?, ?, ?, ?)`,
+    args: [deck.id, deck.user_id, deck.token, deck.title, deck.image_ids],
+  });
+  const result = await client.execute({
+    sql: `SELECT * FROM creative_decks WHERE id = ?`,
+    args: [deck.id],
+  });
+  return result.rows[0] as unknown as CreativeDeck;
+}
+
+export async function getDeckByToken(token: string): Promise<CreativeDeck | undefined> {
+  const result = await client.execute({
+    sql: `SELECT * FROM creative_decks WHERE token = ?`,
+    args: [token],
+  });
+  return result.rows[0] as unknown as CreativeDeck | undefined;
+}
+
+export async function getDecksByUser(userId: string): Promise<CreativeDeck[]> {
+  const result = await client.execute({
+    sql: `SELECT * FROM creative_decks WHERE user_id = ? ORDER BY created_at DESC`,
+    args: [userId],
+  });
+  return result.rows as unknown as CreativeDeck[];
 }

@@ -117,7 +117,39 @@ import {
   TrashIcon,
   MessageSquareIcon,
   BookOpenIcon,
+  ChevronDownIcon,
+  SunIcon,
+  ZoomInIcon,
+  MoonIcon,
+  SmileIcon,
+  LayoutGridIcon,
+  ThumbsUpIcon,
+  MessageCircleIcon,
+  ShareIcon,
+  MoreHorizontalIcon,
+  GalleryHorizontalIcon,
+  UsersIcon,
+  ClipboardListIcon,
+  HelpCircleIcon,
 } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { OnboardingModal, useOnboarding } from "@/components/onboarding/onboarding-modal";
+import { CreativeBriefDialog } from "@/components/creative-brief-dialog";
+import { CommandPalette } from "@/components/command-palette";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -130,6 +162,7 @@ interface ApprovalInput {
 interface ImageResult {
   success: boolean;
   imageUrl?: string;
+  imageUrls?: string[];
   enhancedPrompt?: string;
   settings?: {
     aspect_ratio: string;
@@ -150,6 +183,7 @@ interface ReviewResult {
 interface GenerationSettings {
   model: "google/nano-banana-pro" | "google/nano-banana-2" | "bytedance/seedream-4.5" | "ideogram-ai/ideogram-v3-turbo";
   aspect_ratio: string;
+  batch_count: 1 | 2 | 4;
   // Google models
   resolution: string;
   output_format: string;
@@ -181,6 +215,12 @@ interface IdeationResult {
 type IdeationResponse = IdeationResult | ClarificationResult;
 
 type Phase = "idle" | "ideating" | "clarifying" | "awaiting" | "generating";
+
+interface Persona {
+  id: string;
+  name: string;
+  description: string;
+}
 
 interface ChatSummary {
   id: string;
@@ -258,14 +298,67 @@ const EXAMPLE_CONCEPTS = [
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function ImageDisplay({
+const REFINEMENT_NUDGES = [
+  { label: "Warmer", icon: SunIcon, instruction: "warmer lighting, golden tones" },
+  { label: "Candid", icon: SmileIcon, instruction: "more candid angle, slightly off-center framing" },
+  { label: "Brighter", icon: SparklesIcon, instruction: "brighter, airy, high-key natural light" },
+  { label: "Close-up", icon: ZoomInIcon, instruction: "tighter crop, extreme close-up" },
+  { label: "Moody", icon: MoonIcon, instruction: "moodier, underexposed, dramatic shadows" },
+] as const;
+
+function FacebookMockup({ imageUrl, prompt }: { imageUrl: string; prompt?: string }) {
+  return (
+    <div className="w-full max-w-sm rounded-lg border border-gray-200 bg-white overflow-hidden text-black shadow-sm">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-3 py-2.5">
+        <div className="flex items-center gap-2">
+          <div className="w-9 h-9 rounded-full bg-gray-200 shrink-0" />
+          <div>
+            <p className="text-xs font-semibold leading-none">Sponsored</p>
+            <p className="text-[10px] text-gray-500 mt-0.5">Sponsored · <span className="text-blue-600">🌐</span></p>
+          </div>
+        </div>
+        <MoreHorizontalIcon className="h-4 w-4 text-gray-500" />
+      </div>
+      {/* Image */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={imageUrl}
+        alt={prompt || "Native ad preview"}
+        className="w-full object-cover"
+      />
+      {/* CTA bar */}
+      <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100">
+        <div className="flex items-center gap-3">
+          <button className="flex items-center gap-1 text-xs text-gray-600 font-medium">
+            <ThumbsUpIcon className="h-3.5 w-3.5" /> Like
+          </button>
+          <button className="flex items-center gap-1 text-xs text-gray-600 font-medium">
+            <MessageCircleIcon className="h-3.5 w-3.5" /> Comment
+          </button>
+          <button className="flex items-center gap-1 text-xs text-gray-600 font-medium">
+            <ShareIcon className="h-3.5 w-3.5" /> Share
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SingleImageTile({
   imageUrl,
   prompt,
+  onNudge,
+  showNudges,
 }: {
   imageUrl: string;
   prompt?: string;
+  onNudge?: (instruction: string) => void;
+  showNudges?: boolean;
 }) {
   const [fullscreen, setFullscreen] = useState(false);
+  const [mockup, setMockup] = useState(false);
+  const [promptOpen, setPromptOpen] = useState(false);
 
   const handleDownload = async () => {
     try {
@@ -284,32 +377,34 @@ function ImageDisplay({
 
   return (
     <>
-      <div className="mt-3 space-y-2">
-        <div
-          className="relative group overflow-hidden rounded-xl border bg-muted cursor-zoom-in w-full max-w-sm"
-          onClick={() => setFullscreen(true)}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imageUrl}
-            alt={prompt || "Generated native ad"}
-            className="w-full max-h-[70vh] object-cover transition-transform group-hover:scale-[1.02]"
-          />
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Badge variant="secondary" className="text-xs gap-1">
-              <Maximize2Icon className="h-3 w-3" />
-              View
-            </Badge>
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs gap-1.5"
-            onClick={handleDownload}
+      <div className="space-y-2">
+        {/* Image or mockup */}
+        {mockup ? (
+          <FacebookMockup imageUrl={imageUrl} prompt={prompt} />
+        ) : (
+          <div
+            className="relative group overflow-hidden rounded-xl border bg-muted cursor-zoom-in w-full max-w-sm"
+            onClick={() => setFullscreen(true)}
           >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imageUrl}
+              alt={prompt || "Generated native ad"}
+              className="w-full max-h-[70vh] object-cover transition-transform group-hover:scale-[1.02]"
+            />
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Badge variant="secondary" className="text-xs gap-1">
+                <Maximize2Icon className="h-3 w-3" />
+                View
+              </Badge>
+            </div>
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={handleDownload}>
             <DownloadIcon className="h-3 w-3" />
             Download
           </Button>
@@ -317,17 +412,74 @@ function ImageDisplay({
             variant="outline"
             size="sm"
             className="h-7 text-xs gap-1.5"
-            onClick={() => {
-              navigator.clipboard.writeText(imageUrl);
-              toast.success("Image URL copied");
-            }}
+            onClick={() => { navigator.clipboard.writeText(imageUrl); toast.success("URL copied"); }}
           >
             <CopyIcon className="h-3 w-3" />
             Copy URL
           </Button>
+          <Button
+            variant={mockup ? "default" : "outline"}
+            size="sm"
+            className="h-7 text-xs gap-1.5"
+            onClick={() => setMockup((v) => !v)}
+          >
+            <LayoutGridIcon className="h-3 w-3" />
+            Feed preview
+          </Button>
+          {prompt && (
+            <Button
+              variant={promptOpen ? "default" : "outline"}
+              size="sm"
+              className="h-7 text-xs gap-1.5"
+              onClick={() => setPromptOpen((v) => !v)}
+            >
+              <ClipboardListIcon className="h-3 w-3" />
+              Prompt
+              <ChevronDownIcon className={`h-3 w-3 transition-transform ${promptOpen ? "rotate-180" : ""}`} />
+            </Button>
+          )}
         </div>
+
+        {/* Prompt panel */}
+        {promptOpen && prompt && (
+          <div className="rounded-lg border bg-muted px-3 py-2.5 space-y-2 max-w-sm">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Prompt sent to model</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 px-1.5 text-[10px] gap-1"
+                onClick={() => { navigator.clipboard.writeText(prompt); toast.success("Prompt copied"); }}
+              >
+                <CopyIcon className="h-2.5 w-2.5" />
+                Copy
+              </Button>
+            </div>
+            <p className="text-xs font-mono leading-relaxed text-foreground/80">{prompt}</p>
+          </div>
+        )}
+
+        {/* Refinement nudges */}
+        {showNudges && onNudge && (
+          <div className="flex items-center gap-1.5 flex-wrap max-w-sm">
+            <span className="text-[10px] text-muted-foreground font-medium">Refine:</span>
+            {REFINEMENT_NUDGES.map(({ label, icon: Icon, instruction }) => (
+              <Button
+                key={label}
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-foreground"
+                onClick={() => onNudge(instruction)}
+              >
+                <Icon className="h-2.5 w-2.5" />
+                {label}
+              </Button>
+            ))}
+          </div>
+        )}
       </div>
 
+      {/* Fullscreen overlay */}
       {fullscreen && (
         <div
           className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
@@ -349,6 +501,42 @@ function ImageDisplay({
         </div>
       )}
     </>
+  );
+}
+
+function ImageDisplay({
+  imageUrl,
+  imageUrls,
+  prompt,
+  onNudge,
+  showNudges,
+}: {
+  imageUrl: string;
+  imageUrls?: string[];
+  prompt?: string;
+  onNudge?: (instruction: string) => void;
+  showNudges?: boolean;
+}) {
+  const urls = imageUrls && imageUrls.length > 1 ? imageUrls : [imageUrl];
+
+  if (urls.length === 1) {
+    return (
+      <div className="mt-3">
+        <SingleImageTile imageUrl={urls[0]} prompt={prompt} onNudge={onNudge} showNudges={showNudges} />
+      </div>
+    );
+  }
+
+  // Batch grid
+  return (
+    <div className="mt-3 space-y-3">
+      <p className="text-xs text-muted-foreground font-medium">{urls.length} images generated</p>
+      <div className="grid grid-cols-2 gap-2 max-w-lg">
+        {urls.map((url, i) => (
+          <SingleImageTile key={i} imageUrl={url} prompt={prompt} onNudge={onNudge} showNudges={showNudges && i === 0} />
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -466,9 +654,11 @@ function ApprovalCard({
 function ToolResult({
   part,
   onAddToolResult,
+  onNudge,
 }: {
   part: AnyToolPart;
   onAddToolResult: (toolCallId: string, result: unknown) => void;
+  onNudge?: (instruction: string) => void;
 }) {
   // Named ToolUIParts encode the tool name inside `type` ("tool-reviewImage"),
   // while DynamicToolUIParts use a separate `toolName` field. Support both.
@@ -560,7 +750,6 @@ function ToolResult({
               {reviewResult.image_url && (
                 <ImageDisplay
                   imageUrl={reviewResult.image_url}
-                  prompt="Reviewed image"
                 />
               )}
               <ReviewDisplay result={reviewResult} />
@@ -587,7 +776,10 @@ function ToolResult({
         {imageResult?.success && imageResult.imageUrl ? (
           <ImageDisplay
             imageUrl={imageResult.imageUrl}
+            imageUrls={imageResult.imageUrls}
             prompt={imageResult.enhancedPrompt}
+            onNudge={onNudge}
+            showNudges={isComplete}
           />
         ) : result != null || errorText != null ? (
           <ToolOutput output={result} errorText={errorText} />
@@ -997,17 +1189,26 @@ function ChatSession({
   preloadedMessages,
   onChatSaved,
   onRefreshSidebar,
+  pendingConcept,
+  onPendingConceptConsumed,
+  savedChats,
+  onSelectChat,
+  onNewChat,
 }: {
   chatId: string | null;
-  // Renamed from initialMessages — AI SDK v6 Chat constructor uses `messages`
-  // not `initialMessages`. Passing the wrong key silently ignores the data.
   preloadedMessages: UIMessage[];
   onChatSaved: (id: string) => void;
   onRefreshSidebar: () => void;
+  pendingConcept?: string | null;
+  onPendingConceptConsumed?: () => void;
+  savedChats: ChatSummary[];
+  onSelectChat: (id: string) => void;
+  onNewChat: () => void;
 }) {
   const [settings, setSettings] = useState<GenerationSettings>({
     model: "google/nano-banana-2",
     aspect_ratio: "4:5",
+    batch_count: 1,
     resolution: "1K",
     output_format: "jpg",
     safety_filter_level: "block_only_high",
@@ -1022,9 +1223,69 @@ function ChatSession({
   const [currentConcept, setCurrentConcept] = useState("");
   const [ideation, setIdeation] = useState<IdeationResult | null>(null);
   const [clarification, setClarification] = useState<ClarificationResult | null>(null);
-  const [queue, setQueue] = useState<string[]>([]);
+  const [queue, setQueue] = useState<{ prompt: string; ratioOverride?: string }[]>([]);
 
-  const queueRef = useRef<string[]>([]);
+  // Multi-crop: which ratios are selected
+  const [selectedRatios, setSelectedRatios] = useState<string[]>(["4:5"]);
+
+  // Creative brief
+  const [briefOpen, setBriefOpen] = useState(false);
+  const [briefProduct, setBriefProduct] = useState("");
+  const [briefAudience, setBriefAudience] = useState("");
+  const [briefBenefit, setBriefBenefit] = useState("");
+  const [briefEmotion, setBriefEmotion] = useState("pain");
+  const [briefConceptCount, setBriefConceptCount] = useState(4);
+  const [briefLoading, setBriefLoading] = useState(false);
+
+  // handleBriefSubmit is defined after triggerGenerationWithCrops to avoid forward-reference
+
+  // Personas
+  const [personas, setPersonas] = useState<Persona[]>([]);
+  const [activePersonaId, setActivePersonaId] = useState<string | null>(null);
+  const [managePersonasOpen, setManagePersonasOpen] = useState(false);
+  const [newPersonaName, setNewPersonaName] = useState("");
+  const [newPersonaDescription, setNewPersonaDescription] = useState("");
+  const [savingPersona, setSavingPersona] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/personas")
+      .then((r) => r.json())
+      .then((d) => { if (Array.isArray(d.personas)) setPersonas(d.personas); })
+      .catch(() => {});
+  }, []);
+
+  const handleSavePersona = useCallback(async () => {
+    if (!newPersonaName.trim() || !newPersonaDescription.trim()) return;
+    setSavingPersona(true);
+    try {
+      const res = await fetch("/api/personas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newPersonaName.trim(), description: newPersonaDescription.trim() }),
+      });
+      if (res.ok) {
+        const { persona } = await res.json();
+        setPersonas((prev) => [persona, ...prev]);
+        setNewPersonaName("");
+        setNewPersonaDescription("");
+        toast.success("Persona saved");
+      }
+    } catch {
+      toast.error("Failed to save persona");
+    } finally {
+      setSavingPersona(false);
+    }
+  }, [newPersonaName, newPersonaDescription]);
+
+  const handleDeletePersona = useCallback(async (id: string) => {
+    await fetch(`/api/personas/${id}`, { method: "DELETE" });
+    setPersonas((prev) => prev.filter((p) => p.id !== id));
+    if (activePersonaId === id) setActivePersonaId(null);
+  }, [activePersonaId]);
+
+  const activePersona = personas.find((p) => p.id === activePersonaId) ?? null;
+
+  const queueRef = useRef<{ prompt: string; ratioOverride?: string }[]>([]);
   const settingsRef = useRef(settings);
   const processNextRef = useRef<(() => void) | null>(null);
   const chatIdRef = useRef<string | null>(chatId);
@@ -1100,13 +1361,36 @@ function ChatSession({
       toast.error(err.message || "Something went wrong");
       setPhase("idle");
     },
-    onFinish: () => {
+    onFinish: ({ messages: finishedMessages }) => {
       saveChat(messagesRef.current);
-      processNextRef.current?.();
+      // If any assistant message still has an approveRetry tool waiting for
+      // user input, don't advance the queue yet — the user must respond first.
+      // Advancing the queue adds a new user message which shifts approveRetry
+      // out of the last position, causing addToolResult to update the wrong
+      // message and the retry button to silently do nothing.
+      const hasPendingApproval = (finishedMessages as UIMessage[]).some((m) =>
+        m.role === "assistant" &&
+        m.parts.some((p) => {
+          const tp = p as AnyToolPart;
+          const name = tp.toolName ?? (tp.type as string)?.replace(/^tool-/, "");
+          return name === "approveRetry" && tp.state === "input-available";
+        })
+      );
+      if (!hasPendingApproval) {
+        processNextRef.current?.();
+      }
     },
   });
 
   useEffect(() => { messagesRef.current = messages; }, [messages]);
+
+  // When the parent passes a concept from onboarding, kick off ideation automatically.
+  useEffect(() => {
+    if (!pendingConcept || phase !== "idle" || messages.length > 0) return;
+    onPendingConceptConsumed?.();
+    runIdeation(pendingConcept);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingConcept]);
 
   // ── Checkpoint detection ───────────────────────────────────────────────────
 
@@ -1134,33 +1418,87 @@ function ChatSession({
   // ── Queue processing ───────────────────────────────────────────────────────
 
   const triggerGeneration = useCallback(
-    (prompt: string) => {
+    (prompt: string, ratioOverride?: string) => {
       setPhase("generating");
       setIdeation(null);
       setCurrentConcept("");
+      const effectiveSettings = ratioOverride
+        ? { ...settings, aspect_ratio: ratioOverride }
+        : settings;
       // Consume any reference images the user attached (cleared after use so
       // subsequent retries / queue items don't incorrectly reuse them).
       const files = pendingFilesRef.current.splice(0);
       sendMessage(
         files.length ? { text: prompt, files } : { text: prompt },
-        { body: { settings } },
+        { body: { settings: { ...effectiveSettings, chatId: chatIdRef.current } } },
       );
     },
     [sendMessage, settings]
   );
+
+  // Called after ideation resolves: generates for the first ratio and queues the rest.
+  const triggerGenerationWithCrops = useCallback(
+    (prompt: string) => {
+      const [first, ...rest] = selectedRatios.length > 0 ? selectedRatios : [settings.aspect_ratio];
+      triggerGeneration(prompt, first !== settings.aspect_ratio ? first : undefined);
+      if (rest.length > 0) {
+        setQueue((prev) => [
+          ...prev,
+          ...rest.map((r) => ({ prompt, ratioOverride: r })),
+        ]);
+      }
+    },
+    [triggerGeneration, selectedRatios, settings.aspect_ratio]
+  );
+
+  const handleBriefSubmit = useCallback(async () => {
+    if (!briefProduct.trim() || !briefAudience.trim() || !briefBenefit.trim()) return;
+    setBriefLoading(true);
+    const concept = `Product: ${briefProduct.trim()}\nTarget audience: ${briefAudience.trim()}\nKey benefit / USP: ${briefBenefit.trim()}\nDesired emotion: ${briefEmotion}`;
+    try {
+      const res = await fetch("/api/ideate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ concept, answers: {} }),
+      });
+      if (!res.ok) throw new Error("Ideation failed");
+      const result = await res.json();
+      if (result.type === "ideate") {
+        const allPrompts = [result.primaryPrompt, ...result.variations, ...result.additionalConcepts];
+        const toQueue = allPrompts.slice(0, briefConceptCount);
+        const [first, ...rest] = toQueue;
+        setBriefOpen(false);
+        setBriefProduct(""); setBriefAudience(""); setBriefBenefit("");
+        triggerGenerationWithCrops(first);
+        if (rest.length > 0) {
+          setQueue((prev) => [...prev, ...rest.map((p) => ({ prompt: p }))]);
+          toast.success(`Brief queued ${toQueue.length} concepts`);
+        }
+      } else {
+        toast.error("Couldn't generate concepts — try being more specific");
+      }
+    } catch {
+      toast.error("Brief generation failed");
+    } finally {
+      setBriefLoading(false);
+    }
+  }, [briefProduct, briefAudience, briefBenefit, briefEmotion, briefConceptCount, triggerGenerationWithCrops]);
 
   const processNextInQueue = useCallback(() => {
     const next = queueRef.current[0];
     if (!next) { setPhase("idle"); return; }
     setQueue((prev) => prev.slice(1));
     setPhase("generating");
-    sendMessage({ text: next }, { body: { settings: settingsRef.current } });
+    const effectiveSettings = next.ratioOverride
+      ? { ...settingsRef.current, aspect_ratio: next.ratioOverride }
+      : settingsRef.current;
+    sendMessage({ text: next.prompt }, { body: { settings: { ...effectiveSettings, chatId: chatIdRef.current } } });
   }, [sendMessage]);
 
   useEffect(() => { processNextRef.current = processNextInQueue; }, [processNextInQueue]);
 
   const handleAddToQueue = useCallback((prompt: string) => {
-    setQueue((prev) => [...prev, prompt]);
+    setQueue((prev) => [...prev, { prompt }]);
     toast.success("Added to queue");
   }, []);
 
@@ -1178,11 +1516,16 @@ function ChatSession({
       const abortController = new AbortController();
       ideationAbortRef.current = abortController;
 
+      // Inject active persona context into the concept
+      const enrichedConcept = activePersona
+        ? `[Target persona: ${activePersona.name} — ${activePersona.description}]\n\n${concept}`
+        : concept;
+
       try {
         const res = await fetch("/api/ideate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ concept, answers }),
+          body: JSON.stringify({ concept: enrichedConcept, answers }),
           signal: abortController.signal,
         });
         if (!res.ok) throw new Error("Ideation failed");
@@ -1204,7 +1547,7 @@ function ChatSession({
         ideationAbortRef.current = null;
       }
     },
-    [triggerGeneration]
+    [triggerGeneration, activePersona]
   );
 
   // Called when the user submits answers to clarifying questions.
@@ -1346,7 +1689,7 @@ function ChatSession({
                   <IdeationPanel
                     concept={currentConcept}
                     ideation={ideation}
-                    onGenerate={triggerGeneration}
+                    onGenerate={triggerGenerationWithCrops}
                     onAddToQueue={handleAddToQueue}
                   />
                 )}
@@ -1458,6 +1801,10 @@ function ChatSession({
                               const toolName = tp.toolName ?? tp.type.replace(/^tool-/, "");
                               addToolResult({ tool: toolName, toolCallId, output: result });
                             }}
+                            onNudge={(instruction) => {
+                              if (phase !== "idle") return;
+                              triggerGeneration(`Refine: ${instruction}`);
+                            }}
                           />
                         );
                       }
@@ -1488,7 +1835,7 @@ function ChatSession({
                   <IdeationPanel
                     concept={currentConcept}
                     ideation={ideation}
-                    onGenerate={triggerGeneration}
+                    onGenerate={triggerGenerationWithCrops}
                     onAddToQueue={handleAddToQueue}
                   />
                 )}
@@ -1522,7 +1869,56 @@ function ChatSession({
               </Button>
             )}
 
+            {/* Creative brief button */}
+            {phase === "idle" && !isStreaming && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1.5 text-xs text-muted-foreground"
+                onClick={() => setBriefOpen(true)}
+              >
+                <ClipboardListIcon className="h-3.5 w-3.5" />
+                Brief
+              </Button>
+            )}
+
+            {/* Creative Brief Dialog */}
+            <CreativeBriefDialog
+              open={briefOpen}
+              onOpenChange={setBriefOpen}
+              product={briefProduct}
+              onProductChange={setBriefProduct}
+              audience={briefAudience}
+              onAudienceChange={setBriefAudience}
+              benefit={briefBenefit}
+              onBenefitChange={setBriefBenefit}
+              emotion={briefEmotion}
+              onEmotionChange={setBriefEmotion}
+              conceptCount={briefConceptCount}
+              onConceptCountChange={setBriefConceptCount}
+              loading={briefLoading}
+              onSubmit={handleBriefSubmit}
+              disabled={phase !== "idle"}
+            />
+
             <div className="flex items-center gap-2 flex-wrap">
+                {/* Batch count */}
+                <div className="flex items-center rounded-md border overflow-hidden">
+                  {([1, 2, 4] as const).map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => setSettings((s) => ({ ...s, batch_count: n }))}
+                      className={`h-7 px-2.5 text-xs font-medium transition-colors ${
+                        settings.batch_count === n
+                          ? "bg-foreground text-background"
+                          : "bg-background text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {n}x
+                    </button>
+                  ))}
+                </div>
+
                 {/* Model selector */}
                 <ModelSelector>
                   <ModelSelectorTrigger asChild>
@@ -1564,7 +1960,11 @@ function ChatSession({
                           <ModelSelectorItem
                             value="nano-banana-2"
                             selected={settings.model === "google/nano-banana-2"}
-                            onSelect={() => setSettings((s) => ({ ...s, model: "google/nano-banana-2" }))}
+                            onSelect={() => setSettings((s) => ({
+                              ...s,
+                              model: "google/nano-banana-2",
+                              resolution: s.resolution === "4K" ? "2K" : s.resolution,
+                            }))}
                           >
                             <ModelSelectorLogoGroup>
                               <ModelSelectorLogo provider="google" />
@@ -1606,30 +2006,65 @@ function ChatSession({
                   </ModelSelectorContent>
                 </ModelSelector>
 
-                {/* Aspect ratio — all models */}
-                <Select
-                  value={settings.aspect_ratio}
-                  onValueChange={(v) =>
-                    setSettings((s) => ({ ...s, aspect_ratio: v }))
-                  }
-                >
-                  <SelectTrigger className="h-7 text-xs w-auto min-w-[100px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {/* 4:5 is only valid for Google models */}
-                    {settings.model !== "bytedance/seedream-4.5" && (
-                      <SelectItem value="4:5">4:5 (native)</SelectItem>
-                    )}
-                    <SelectItem value="1:1">1:1 (square)</SelectItem>
-                    <SelectItem value="3:4">3:4</SelectItem>
-                    <SelectItem value="9:16">9:16 (story)</SelectItem>
-                    <SelectItem value="16:9">16:9 (wide)</SelectItem>
-                    <SelectItem value="4:3">4:3</SelectItem>
-                    <SelectItem value="3:2">3:2</SelectItem>
-                    <SelectItem value="2:3">2:3</SelectItem>
-                  </SelectContent>
-                </Select>
+                {/* Aspect ratio — multi-select popover */}
+                {(() => {
+                  const ALL_RATIOS = [
+                    ...(settings.model !== "bytedance/seedream-4.5" ? [{ value: "4:5", label: "4:5 (native)" }] : []),
+                    { value: "1:1", label: "1:1 (square)" },
+                    { value: "3:4", label: "3:4" },
+                    { value: "9:16", label: "9:16 (story)" },
+                    { value: "16:9", label: "16:9 (wide)" },
+                    { value: "4:3", label: "4:3" },
+                    { value: "3:2", label: "3:2" },
+                    { value: "2:3", label: "2:3" },
+                  ];
+                  const label = selectedRatios.length === 1
+                    ? (ALL_RATIOS.find((r) => r.value === selectedRatios[0])?.label ?? selectedRatios[0])
+                    : `${selectedRatios.length} ratios`;
+                  return (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 min-w-[100px] font-normal justify-between">
+                          <span>{label}</span>
+                          <ChevronDownIcon className="h-3 w-3 text-muted-foreground" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-48 p-2">
+                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2 px-1">Crop formats</p>
+                        <div className="space-y-0.5">
+                          {ALL_RATIOS.map(({ value, label: ratioLabel }) => {
+                            const checked = selectedRatios.includes(value);
+                            return (
+                              <button
+                                key={value}
+                                onClick={() => {
+                                  setSelectedRatios((prev) => {
+                                    if (checked && prev.length === 1) return prev; // keep at least one
+                                    const next = checked ? prev.filter((r) => r !== value) : [...prev, value];
+                                    // Keep settings.aspect_ratio in sync with first selected
+                                    if (next.length > 0) setSettings((s) => ({ ...s, aspect_ratio: next[0] }));
+                                    return next;
+                                  });
+                                }}
+                                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-left transition-colors ${
+                                  checked ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
+                                }`}
+                              >
+                                <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${checked ? "bg-primary border-primary" : "border-muted-foreground/40"}`}>
+                                  {checked && <CheckCircleIcon className="h-2.5 w-2.5 text-primary-foreground" />}
+                                </div>
+                                {ratioLabel}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {selectedRatios.length > 1 && (
+                          <p className="text-[10px] text-muted-foreground mt-2 px-1">Will queue {selectedRatios.length} crops per generation</p>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                  );
+                })()}
 
                 {/* Google models: resolution + output format */}
                 {settings.model.startsWith("google/") && (
@@ -1649,7 +2084,9 @@ function ChatSession({
                         )}
                         <SelectItem value="1K">1K</SelectItem>
                         <SelectItem value="2K">2K</SelectItem>
-                        <SelectItem value="4K">4K</SelectItem>
+                        {settings.model !== "google/nano-banana-2" && (
+                          <SelectItem value="4K">4K</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                     <Select
@@ -1722,7 +2159,103 @@ function ChatSession({
                     </SelectContent>
                   </Select>
                 )}
+
+                {/* Persona selector */}
+                <Select
+                  value={activePersonaId ?? "__none__"}
+                  onValueChange={(v) => {
+                    if (v === "__manage__") { setManagePersonasOpen(true); return; }
+                    setActivePersonaId(v === "__none__" ? null : v);
+                  }}
+                >
+                  <SelectTrigger className="h-7 text-xs w-auto min-w-[110px]">
+                    <UsersIcon className="h-3 w-3 mr-1 text-muted-foreground" />
+                    <SelectValue placeholder="No persona" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">No persona</SelectItem>
+                    {personas.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                    <SelectItem value="__manage__" className="text-primary font-medium border-t mt-1 pt-1">
+                      Manage personas…
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+
+              {/* Manage Personas Dialog */}
+              <Dialog open={managePersonasOpen} onOpenChange={setManagePersonasOpen}>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <UsersIcon className="h-4 w-4" />
+                      Personas
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    {/* Existing personas */}
+                    {personas.length > 0 && (
+                      <div className="space-y-2">
+                        {personas.map((p) => (
+                          <div key={p.id} className="flex items-start gap-2 rounded-lg border p-3">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium">{p.name}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{p.description}</p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                              onClick={() => handleDeletePersona(p.id)}
+                            >
+                              <TrashIcon className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {personas.length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-2">No personas yet. Add one below.</p>
+                    )}
+                    {/* Add new persona */}
+                    <div className="space-y-3 border-t pt-4">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">New Persona</p>
+                      <div className="space-y-2">
+                        <div>
+                          <Label className="text-xs">Name</Label>
+                          <Input
+                            value={newPersonaName}
+                            onChange={(e) => setNewPersonaName(e.target.value)}
+                            placeholder="e.g. Sarah, 28, fitness"
+                            className="h-8 text-sm mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Description</Label>
+                          <Textarea
+                            value={newPersonaDescription}
+                            onChange={(e) => setNewPersonaDescription(e.target.value)}
+                            placeholder="e.g. Women 25–35, fitness enthusiasts, follow wellness accounts, iPhone Pro users, morning routines"
+                            className="text-sm mt-1 resize-none"
+                            rows={3}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" size="sm" onClick={() => setManagePersonasOpen(false)}>Close</Button>
+                    <Button
+                      size="sm"
+                      disabled={savingPersona || !newPersonaName.trim() || !newPersonaDescription.trim()}
+                      onClick={handleSavePersona}
+                    >
+                      {savingPersona ? "Saving…" : "Save persona"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
             {queue.length > 0 && (
               <div className="w-full mt-1">
@@ -1737,14 +2270,17 @@ function ChatSession({
                     </QueueSectionTrigger>
                     <QueueSectionContent>
                       <QueueList>
-                        {queue.map((prompt, i) => (
+                        {queue.map((item, i) => (
                           <QueueItem key={i}>
                             <div className="flex items-start gap-2 w-full">
                               <QueueItemIndicator className="mt-1" />
                               <QueueItemContent className="text-xs">
-                                {prompt.length > 80
-                                  ? prompt.slice(0, 80) + "…"
-                                  : prompt}
+                                {item.ratioOverride && (
+                                  <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 mr-1 font-mono">
+                                    {item.ratioOverride}
+                                  </Badge>
+                                )}
+                                {item.prompt.length > 80 ? item.prompt.slice(0, 80) + "…" : item.prompt}
                               </QueueItemContent>
                               <QueueItemActions>
                                 <QueueItemAction
@@ -1823,6 +2359,16 @@ function ChatSession({
           </PromptInput>
         </div>
       </div>
+
+      {/* ⌘K command palette — always mounted so the keyboard shortcut works */}
+      <CommandPalette
+        savedChats={savedChats}
+        currentModel={settings.model}
+        messages={messages}
+        onSelectChat={onSelectChat}
+        onNewChat={onNewChat}
+        onSetModel={(model) => setSettings((s) => ({ ...s, model }))}
+      />
     </div>
   );
 }
@@ -1843,6 +2389,8 @@ export default function ChatPage({
     isAdmin: boolean;
   } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { open: onboardingOpen, setOpen: setOnboardingOpen, ready: onboardingReady } = useOnboarding();
+  const [pendingConcept, setPendingConcept] = useState<string | null>(null);
   const [savedChats, setSavedChats] = useState<ChatSummary[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(initialChatId ?? null);
   // chatKey is a monotonic counter used as the ChatSession `key`. It is ONLY
@@ -1945,6 +2493,9 @@ export default function ChatPage({
                 </svg>
               </div>
               <span className="font-semibold text-sm tracking-tight">Native Ads</span>
+              <kbd className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-border bg-muted text-[10px] text-muted-foreground font-mono select-none cursor-default">
+                ⌘K
+              </kbd>
             </div>
           </div>
           <div className="flex items-center gap-1">
@@ -1955,6 +2506,24 @@ export default function ChatPage({
                   Admin
                 </Button>
               </Link>
+            )}
+            <Link href="/gallery">
+              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
+                <GalleryHorizontalIcon className="h-3.5 w-3.5" />
+                Gallery
+              </Button>
+            </Link>
+            {onboardingReady && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                onClick={() => setOnboardingOpen(true)}
+                title="Open guide"
+              >
+                <HelpCircleIcon className="h-3.5 w-3.5" />
+                Guide
+              </Button>
             )}
             <Link href="/docs">
               <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
@@ -2002,8 +2571,22 @@ export default function ChatPage({
           preloadedMessages={loadedMessages}
           onChatSaved={handleChatSaved}
           onRefreshSidebar={refreshSidebar}
+          pendingConcept={pendingConcept}
+          onPendingConceptConsumed={() => setPendingConcept(null)}
+          savedChats={savedChats}
+          onSelectChat={handleSelectChat}
+          onNewChat={handleNewChat}
         />
       </div>
+
+      {/* Onboarding modal */}
+      <OnboardingModal
+        open={onboardingOpen}
+        onOpenChange={setOnboardingOpen}
+        onSelectConcept={(concept) => {
+          setPendingConcept(concept);
+        }}
+      />
     </div>
   );
 }
