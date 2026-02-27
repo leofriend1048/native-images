@@ -3,6 +3,7 @@ import { anthropic } from "@ai-sdk/anthropic";
 import Replicate from "replicate";
 import { z } from "zod/v4";
 import { getSession } from "@/lib/auth";
+import { mirrorUrlToStorage, uploadDataUrlToStorage } from "@/lib/storage";
 
 export const maxDuration = 300;
 
@@ -107,6 +108,8 @@ export async function POST(req: Request) {
   // other gated origins) return 403 Forbidden when Replicate's servers try to fetch
   // them. Legitimate file uploads go through the PromptInput which always converts
   // blob: → data:, so filtering to data: URLs is both safe and correct.
+  // Extract reference images from the most recent user message that has attachments.
+  // Upload each data: URL to Supabase so Replicate can fetch them as stable HTTP URLs.
   const referenceImages: string[] = [];
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
@@ -118,7 +121,19 @@ export async function POST(req: Request) {
         (p as unknown as { url: string }).url.startsWith("data:")
     );
     if (fileParts.length > 0) {
-      referenceImages.push(...fileParts.map((p) => p.url));
+      const uploaded = await Promise.all(
+        fileParts.map(async (p, idx) => {
+          const ext = p.mediaType.split("/")[1]?.split("+")[0] ?? "jpg";
+          const path = `references/${session.userId}/${Date.now()}-${idx}.${ext}`;
+          try {
+            return await uploadDataUrlToStorage(p.url, path);
+          } catch (err) {
+            console.error("Failed to upload reference image to Supabase:", err);
+            return p.url; // fall back to data: URL if upload fails
+          }
+        })
+      );
+      referenceImages.push(...uploaded);
       break; // only use the most recent user message that has attachments
     }
   }
@@ -221,9 +236,13 @@ export async function POST(req: Request) {
             ].filter((url, idx, arr) => arr.indexOf(url) === idx);
 
             if (modelId === "bytedance/seedream-4.5") {
+              const seedreamValidRatios = ["match_input_image","1:1","4:3","3:4","16:9","9:16","3:2","2:3","21:9"];
+              const seedreamRatio = seedreamValidRatios.includes(settings.aspect_ratio)
+                ? settings.aspect_ratio
+                : "4:3"; // fallback: nearest to 4:5
               input = {
                 prompt,
-                aspect_ratio: settings.aspect_ratio || "4:5",
+                aspect_ratio: seedreamRatio,
                 size: settings.size || "2K",
                 max_images: 1,
                 sequential_image_generation: "disabled",
@@ -264,11 +283,21 @@ export async function POST(req: Request) {
             });
 
             // Seedream returns an array of URLs; all other models return a string
-            const imageUrl = Array.isArray(output)
+            const replicateUrl = Array.isArray(output)
               ? (output as string[])[0]
               : typeof output === "string"
               ? output
               : String(output);
+
+            // Mirror to Supabase so the URL never expires
+            const ext = (input.output_format as string | undefined) ?? "jpg";
+            const storagePath = `generated/${session.userId}/${Date.now()}.${ext}`;
+            let imageUrl = replicateUrl;
+            try {
+              imageUrl = await mirrorUrlToStorage(replicateUrl, storagePath);
+            } catch (err) {
+              console.error("Failed to mirror image to Supabase, using Replicate URL:", err);
+            }
 
             return {
               success: true,

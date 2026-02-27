@@ -6,6 +6,7 @@ import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } fro
 import type { ReasoningUIPart, UIMessage } from "ai";
 import { toast } from "sonner";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 // AI Elements
 import {
@@ -1575,7 +1576,12 @@ function ChatSession({
                           <ModelSelectorItem
                             value="seedream-4.5"
                             selected={settings.model === "bytedance/seedream-4.5"}
-                            onSelect={() => setSettings((s) => ({ ...s, model: "bytedance/seedream-4.5" }))}
+                            onSelect={() => setSettings((s) => ({
+                              ...s,
+                              model: "bytedance/seedream-4.5",
+                              // 4:5 is not supported by Seedream; nearest valid ratio is 4:3
+                              aspect_ratio: s.aspect_ratio === "4:5" ? "4:3" : s.aspect_ratio,
+                            }))}
                           >
                             <ModelSelectorLogoGroup>
                               <ModelSelectorLogo provider="bytedance" />
@@ -1611,13 +1617,17 @@ function ChatSession({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="4:5">4:5 (native)</SelectItem>
+                    {/* 4:5 is only valid for Google models */}
+                    {settings.model !== "bytedance/seedream-4.5" && (
+                      <SelectItem value="4:5">4:5 (native)</SelectItem>
+                    )}
                     <SelectItem value="1:1">1:1 (square)</SelectItem>
                     <SelectItem value="3:4">3:4</SelectItem>
                     <SelectItem value="9:16">9:16 (story)</SelectItem>
                     <SelectItem value="16:9">16:9 (wide)</SelectItem>
                     <SelectItem value="4:3">4:3</SelectItem>
                     <SelectItem value="3:2">3:2</SelectItem>
+                    <SelectItem value="2:3">2:3</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -1819,7 +1829,14 @@ function ChatSession({
 
 // ─── Page (root) ──────────────────────────────────────────────────────────────
 
-export default function ChatPage() {
+export default function ChatPage({
+  initialChatId,
+  initialMessages,
+}: {
+  initialChatId?: string;
+  initialMessages?: UIMessage[];
+} = {}) {
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState<{
     name: string | null;
     email: string;
@@ -1827,14 +1844,25 @@ export default function ChatPage() {
   } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [savedChats, setSavedChats] = useState<ChatSummary[]>([]);
-  const [activeChatId, setActiveChatId] = useState<string | null>(null); // sidebar highlight only
+  const [activeChatId, setActiveChatId] = useState<string | null>(initialChatId ?? null);
   // chatKey is a monotonic counter used as the ChatSession `key`. It is ONLY
   // incremented on explicit user navigation (new chat / sidebar click). It must
   // NOT change when a chat is saved for the first time — that would remount the
   // session and clear the conversation.
   const [chatKey, setChatKey] = useState(0);
-  const [loadedMessages, setLoadedMessages] = useState<UIMessage[]>([]);
-  const [loadingChat, setLoadingChat] = useState(false);
+  const [loadedMessages, setLoadedMessages] = useState<UIMessage[]>(initialMessages ?? []);
+
+  // Handle same-segment navigations (e.g. /chat/id1 → /chat/id2) where the
+  // component stays mounted but receives new props from the server component.
+  const prevInitialChatIdRef = useRef(initialChatId);
+  useEffect(() => {
+    if (prevInitialChatIdRef.current !== initialChatId) {
+      prevInitialChatIdRef.current = initialChatId;
+      setActiveChatId(initialChatId ?? null);
+      setLoadedMessages(initialMessages ?? []);
+      setChatKey((k) => k + 1);
+    }
+  }, [initialChatId, initialMessages]);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -1856,45 +1884,34 @@ export default function ChatPage() {
 
   useEffect(() => { refreshSidebar(); }, [refreshSidebar]);
 
-  const handleSelectChat = useCallback(async (chatId: string) => {
-    setLoadingChat(true);
-    try {
-      const res = await fetch(`/api/chats/${chatId}`);
-      if (res.ok) {
-        const chat = await res.json();
-        setLoadedMessages(chat.messages ?? []);
-        setActiveChatId(chatId);
-        setChatKey((k) => k + 1); // explicit navigation → remount
-      }
-    } catch {
-      toast.error("Failed to load chat");
-    } finally {
-      setLoadingChat(false);
-    }
-  }, []);
+  const handleSelectChat = useCallback((chatId: string) => {
+    router.push(`/chat/${chatId}`);
+  }, [router]);
 
   const handleNewChat = useCallback(() => {
-    setActiveChatId(null);
-    setLoadedMessages([]);
-    setChatKey((k) => k + 1); // explicit navigation → remount
-  }, []);
+    router.push("/chat");
+  }, [router]);
 
   const handleChatSaved = useCallback((id: string) => {
     // Only update sidebar highlight — do NOT touch chatKey so the live
     // session is never remounted just because the chat was persisted.
     setActiveChatId(id);
     refreshSidebar();
+    // Silently update the URL bar so the current URL is bookmarkable and
+    // survives a refresh, without triggering a Next.js navigation that
+    // would remount the live session.
+    window.history.replaceState(null, "", `/chat/${id}`);
   }, [refreshSidebar]);
 
   const handleDeleteChat = useCallback(async (chatId: string) => {
     try {
       await fetch(`/api/chats/${chatId}`, { method: "DELETE" });
-      if (activeChatId === chatId) handleNewChat();
+      if (activeChatId === chatId) router.push("/chat");
       refreshSidebar();
     } catch {
       toast.error("Failed to delete chat");
     }
-  }, [activeChatId, handleNewChat, refreshSidebar]);
+  }, [activeChatId, router, refreshSidebar]);
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
@@ -1979,21 +1996,13 @@ export default function ChatPage() {
         </div>
 
         {/* Chat session — key forces full remount on chat switch */}
-        {loadingChat ? (
-          <div className="flex-1 flex items-center justify-center">
-            <Shimmer className="h-5 w-32 rounded-md text-xs px-2">
-              Loading chat…
-            </Shimmer>
-          </div>
-        ) : (
-          <ChatSession
-            key={chatKey}
-            chatId={activeChatId}
-            preloadedMessages={loadedMessages}
-            onChatSaved={handleChatSaved}
-            onRefreshSidebar={refreshSidebar}
-          />
-        )}
+        <ChatSession
+          key={chatKey}
+          chatId={activeChatId}
+          preloadedMessages={loadedMessages}
+          onChatSaved={handleChatSaved}
+          onRefreshSidebar={refreshSidebar}
+        />
       </div>
     </div>
   );
