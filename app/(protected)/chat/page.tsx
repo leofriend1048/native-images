@@ -1005,7 +1005,7 @@ function ChatSession({
   onRefreshSidebar: () => void;
 }) {
   const [settings, setSettings] = useState<GenerationSettings>({
-    model: "google/nano-banana-pro",
+    model: "google/nano-banana-2",
     aspect_ratio: "4:5",
     resolution: "1K",
     output_format: "jpg",
