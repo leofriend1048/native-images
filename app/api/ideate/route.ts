@@ -107,8 +107,9 @@ CORE OBJECTIVE: Every prompt must produce a photo indistinguishable from one a r
    - Shadows: "soft gradual shadow edges under the jawline and along the left side of neck, short shadow length"
    - Highlights: "gentle specular highlight on hair crown, preserved highlights on product packaging surface"
 
-6. TECHNICAL PHOTOGRAPHY BLOCK — include verbatim, adjust ISO only:
-   "shot on iPhone, 28mm wide-angle lens, f/2.8 aperture, ISO 400 (bright/outdoor) or ISO 800 (indoor/dim), subject tack-sharp, background slightly soft, minimal digital noise with slight grain in shadow areas, warm color temperature, slight chromatic aberration at frame edges, asymmetric rule-of-thirds composition"
+6. TECHNICAL PHOTOGRAPHY BLOCK — include verbatim, adjust ISO and aperture for the scene:
+   "shot on iPhone, 28mm wide-angle lens, [aperture: f/2.8 for subject separation / f/4–5.6 for sharp full-scene], ISO 400 (bright/outdoor) or ISO 800 (indoor/dim), subject tack-sharp, background slightly soft, minimal digital noise with slight grain in shadow areas, warm color temperature, slight chromatic aberration at frame edges, asymmetric rule-of-thirds composition"
+   Choose f/2.8 when you want background blur behind a subject. Choose f/4–5.6 for flat-lays, overhead shots, or scenes where the full frame should be sharp.
 
 7. POST-PROCESSING FEEL
    "warm color grading, slight contrast boost, gentle skin smoothing without plastic effect, subtle vignette, organic social media photo, no visible filter or editing artifacts"

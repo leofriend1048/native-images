@@ -49,8 +49,9 @@ IPHONE PROMPT FORMULA — build every prompt with all 7 of these layers:
 5. LIGHTING — name every source, specify direction + quality + temperature + shadows:
    "morning window light from the left + overhead bathroom LED, soft diffused, warm neutral, soft gradual shadow edges under jawline and along left side of neck, gentle highlight on hair crown and product surface"
 
-6. TECHNICAL BLOCK — include verbatim, adjust ISO only:
-   "shot on iPhone, 28mm wide-angle lens, f/2.8 aperture, ISO 400 (bright/outdoor) or ISO 800 (indoor/dim), subject tack-sharp, background slightly soft, minimal digital noise with slight grain in shadows, warm color temperature, slight chromatic aberration at frame edges, asymmetric rule-of-thirds composition"
+6. TECHNICAL BLOCK — always include, adjust aperture and ISO for the scene:
+   "shot on iPhone, 28mm wide-angle lens, [aperture: f/2.8 when subject separation is needed / f/4–5.6 for flat-lays or full-scene sharpness], ISO 400 (bright/outdoor) or ISO 800 (indoor/dim), subject tack-sharp, background slightly soft, minimal digital noise with slight grain in shadows, warm color temperature, slight chromatic aberration at frame edges, asymmetric rule-of-thirds composition"
+   f/2.8 = background blur behind a person. f/4–5.6 = overhead or flat-lay shots where everything should be sharp. Only specify aperture if it serves the shot.
 
 7. POST-PROCESSING: "warm color grading, slight contrast boost, gentle skin smoothing without plastic effect, subtle vignette, organic social media photo"
 
