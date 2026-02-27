@@ -5,53 +5,52 @@ import { getSession } from "@/lib/auth";
 
 export const maxDuration = 30;
 
-const IdeationSchema = z.object({
-  primaryPrompt: z
-    .string()
-    .describe(
-      "The main enhanced native-style ad prompt, ready to send directly to image generation"
+// Single discriminated schema — the `type` field forces Claude to explicitly
+// choose a path rather than defaulting to whichever union branch comes first.
+const IdeationResponseSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("clarify").describe(
+      "Use this when the target audience, product, or emotional angle are unclear enough that guessing would produce off-target concepts."
     ),
-  variations: z
-    .array(z.string())
-    .describe(
-      "3-4 tight variations of the primary concept: different angle, lighting, emotion tag, cropping, or before/after framing. Each is a complete standalone prompt."
+    questions: z
+      .array(
+        z.object({
+          id: z.string().describe("Short unique key, e.g. 'target_audience'"),
+          question: z.string().describe("The clarifying question to ask the user"),
+          options: z
+            .array(z.string())
+            .describe(
+              "3-5 short answer options the user can tap. Always include 'Other / not sure' last."
+            ),
+        })
+      )
+      .min(1)
+      .max(3)
+      .describe("1-3 clarifying questions ordered by importance"),
+  }),
+  z.object({
+    type: z.literal("ideate").describe(
+      "Use this when you have enough context to generate accurate, on-target native ad concepts."
     ),
-  additionalConcepts: z
-    .array(z.string())
-    .describe(
-      "2-3 related but distinct ad concepts the user may not have considered. Each is a brief concept description (not yet a full prompt) that could be submitted as a new idea."
-    ),
-});
-
-export type IdeationResult = z.infer<typeof IdeationSchema>;
-
-// Returned when the concept is too ambiguous to ideate accurately.
-const ClarificationSchema = z.object({
-  needsClarification: z.literal(true),
-  questions: z
-    .array(
-      z.object({
-        id: z.string().describe("Short unique key, e.g. 'target_audience'"),
-        question: z.string().describe("The clarifying question to ask the user"),
-        options: z
-          .array(z.string())
-          .describe(
-            "3-5 short answer options the user can tap, covering the most likely answers. Always include a generic 'Other / not sure' option last."
-          ),
-      })
-    )
-    .min(1)
-    .max(3)
-    .describe("1-3 clarifying questions, ordered by importance"),
-});
-
-const IdeationResponseSchema = z.union([
-  IdeationSchema,
-  ClarificationSchema,
+    primaryPrompt: z
+      .string()
+      .describe("The main enhanced native-style ad prompt, ready to send to image generation"),
+    variations: z
+      .array(z.string())
+      .describe(
+        "3-4 tight variations: different angle, lighting, emotion tag, cropping, or before/after framing. Each is a complete standalone prompt."
+      ),
+    additionalConcepts: z
+      .array(z.string())
+      .describe(
+        "2-3 related but distinct ad concepts for the same persona. Brief descriptions, not full prompts."
+      ),
+  }),
 ]);
 
-export type ClarificationResult = z.infer<typeof ClarificationSchema>;
 export type IdeationResponse = z.infer<typeof IdeationResponseSchema>;
+export type IdeationResult = Extract<IdeationResponse, { type: "ideate" }>;
+export type ClarificationResult = Extract<IdeationResponse, { type: "clarify" }>;
 
 const IDEATION_SYSTEM_PROMPT = `You are a native advertising creative strategist. Given a raw ad concept you must decide:
 

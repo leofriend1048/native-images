@@ -140,12 +140,6 @@ interface GenerationSettings {
   safety_filter_level: string;
 }
 
-interface IdeationResult {
-  primaryPrompt: string;
-  variations: string[];
-  additionalConcepts: string[];
-}
-
 interface ClarificationQuestion {
   id: string;
   question: string;
@@ -153,8 +147,15 @@ interface ClarificationQuestion {
 }
 
 interface ClarificationResult {
-  needsClarification: true;
+  type: "clarify";
   questions: ClarificationQuestion[];
+}
+
+interface IdeationResult {
+  type: "ideate";
+  primaryPrompt: string;
+  variations: string[];
+  additionalConcepts: string[];
 }
 
 type IdeationResponse = IdeationResult | ClarificationResult;
@@ -1138,11 +1139,11 @@ function ChatSession({
         if (!res.ok) throw new Error("Ideation failed");
         const result: IdeationResponse = await res.json();
 
-        if ("needsClarification" in result && result.needsClarification) {
+        if (result.type === "clarify") {
           setClarification(result);
           setPhase("clarifying");
         } else {
-          setIdeation(result as IdeationResult);
+          setIdeation(result);
           setPhase("awaiting");
         }
       } catch (err) {
