@@ -5,6 +5,7 @@ const PUBLIC_PATHS = [
   "/login",
   "/invite",
   "/api/auth/login",
+  "/deck/",
 ];
 
 export async function proxy(req: NextRequest) {
