@@ -600,6 +600,8 @@ function AttachmentPreviewsInInput() {
 
 // ─── Clarification Panel ──────────────────────────────────────────────────────
 
+const OTHER_OPTION = "Other / something else";
+
 function ClarificationPanel({
   concept,
   questions,
@@ -612,19 +614,33 @@ function ClarificationPanel({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<string | null>(null);
+  const [customText, setCustomText] = useState("");
+  const customInputRef = useRef<HTMLInputElement>(null);
 
   const current = questions[currentIndex];
   const isLast = currentIndex === questions.length - 1;
+  const isOther = selected === OTHER_OPTION;
+  const effectiveValue = isOther ? customText.trim() : selected;
+  const canProceed = isOther ? customText.trim().length > 0 : !!selected;
+
+  // Focus the text input when "Other" is selected
+  useEffect(() => {
+    if (isOther) {
+      setTimeout(() => customInputRef.current?.focus(), 50);
+    }
+  }, [isOther]);
 
   const handleSelect = (option: string) => {
     setSelected(option);
+    if (option !== OTHER_OPTION) setCustomText("");
   };
 
   const handleNext = () => {
-    if (!selected) return;
-    const newAnswers = { ...answers, [current.id]: selected };
+    if (!canProceed) return;
+    const newAnswers = { ...answers, [current.id]: effectiveValue! };
     setAnswers(newAnswers);
     setSelected(null);
+    setCustomText("");
 
     if (isLast) {
       onSubmit(newAnswers);
@@ -651,11 +667,7 @@ function ClarificationPanel({
               <div
                 key={i}
                 className={`h-1.5 rounded-full transition-all duration-300 ${
-                  i < currentIndex
-                    ? "w-4 bg-primary"
-                    : i === currentIndex
-                    ? "w-4 bg-primary"
-                    : "w-1.5 bg-muted-foreground/30"
+                  i <= currentIndex ? "w-4 bg-primary" : "w-1.5 bg-muted-foreground/30"
                 }`}
               />
             ))}
@@ -681,13 +693,28 @@ function ClarificationPanel({
               {option}
             </button>
           ))}
+
+          {/* Text input revealed when "Other" is selected */}
+          {isOther && (
+            <input
+              ref={customInputRef}
+              type="text"
+              value={customText}
+              onChange={(e) => setCustomText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && canProceed) handleNext();
+              }}
+              placeholder="Type your answer…"
+              className="mt-1 w-full text-sm px-3 py-2.5 rounded-lg border border-primary bg-primary/5 outline-none placeholder:text-muted-foreground"
+            />
+          )}
         </div>
 
         <div className="flex items-center gap-2 pt-1">
           <Button
             size="sm"
             className="h-8 text-xs gap-1.5"
-            disabled={!selected}
+            disabled={!canProceed}
             onClick={handleNext}
           >
             {isLast ? (

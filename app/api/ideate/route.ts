@@ -5,91 +5,76 @@ import { getSession } from "@/lib/auth";
 
 export const maxDuration = 30;
 
-// Single discriminated schema — the `type` field forces Claude to explicitly
-// choose a path rather than defaulting to whichever union branch comes first.
-const IdeationResponseSchema = z.discriminatedUnion("type", [
-  z.object({
-    type: z.literal("clarify").describe(
-      "Use this when the PRODUCT, PERSONA, or ANGLE are not all clearly established. Missing any one of the three means concepts will miss the mark."
+// ─── Schemas ──────────────────────────────────────────────────────────────────
+
+const QuestionSchema = z.object({
+  id: z.string(),
+  question: z.string(),
+  options: z.array(z.string()),
+});
+
+// Step 1: dedicated call that ONLY decides what questions to ask.
+// Returning an empty array means all three axes are already clear.
+const ClarificationSchema = z.object({
+  questions: z
+    .array(QuestionSchema)
+    .describe(
+      "Questions needed to establish product, persona, and angle (max 3, in priority order). " +
+      "Return EMPTY array only if ALL THREE are unmistakably clear — " +
+      "meaning a copywriter could start writing immediately with no assumptions."
     ),
-    questions: z
-      .array(
-        z.object({
-          id: z.string().describe("Short unique key: 'product', 'persona', or 'angle'"),
-          question: z.string().describe("Short, conversational clarifying question"),
-          options: z
-            .array(z.string())
-            .describe(
-              "4-5 tappable options covering the most likely answers for this product category. Last option must be 'Other / something else'."
-            ),
-        })
-      )
-      .min(1)
-      .max(3)
-      .describe("1-3 questions in priority order: product first, then persona, then angle"),
-  }),
-  z.object({
-    type: z.literal("ideate").describe(
-      "Use this ONLY when product, persona, AND angle are all clearly established from the input."
-    ),
-    primaryPrompt: z
-      .string()
-      .describe("The main enhanced native-style ad prompt, ready to send to image generation"),
-    variations: z
-      .array(z.string())
-      .describe(
-        "3-4 variations each changing one dimension: environment, emotional intensity, moment in time, or competitor framing. Each is a complete standalone prompt."
-      ),
-    additionalConcepts: z
-      .array(z.string())
-      .describe(
-        "2-3 adjacent angles to test for the SAME product and persona — different USP, different problem moment, or competitor comparison. Brief descriptions only."
-      ),
-  }),
-]);
+});
 
-export type IdeationResponse = z.infer<typeof IdeationResponseSchema>;
-export type IdeationResult = Extract<IdeationResponse, { type: "ideate" }>;
-export type ClarificationResult = Extract<IdeationResponse, { type: "clarify" }>;
+// Step 2: ideation — only called once all three axes are confirmed.
+const IdeationSchema = z.object({
+  primaryPrompt: z.string(),
+  variations: z.array(z.string()),
+  additionalConcepts: z.array(z.string()),
+});
 
-const IDEATION_SYSTEM_PROMPT = `You are a native advertising creative director. Before generating any concepts you must lock in three things:
+export type IdeationResult = { type: "ideate" } & z.infer<typeof IdeationSchema>;
+export type ClarificationResult = {
+  type: "clarify";
+  questions: z.infer<typeof QuestionSchema>[];
+};
+export type IdeationResponse = IdeationResult | ClarificationResult;
 
+// ─── Prompts ──────────────────────────────────────────────────────────────────
+
+const CLARIFICATION_SYSTEM_PROMPT = `You are a native advertising creative director. Your ONLY job right now is to identify what information is missing before concepts can be generated.
+
+Every native ad requires THREE axes to be locked in:
 1. PRODUCT — what is being sold (specific enough to know what it does)
-2. ANGLE / USP — what specific problem, benefit, or proof point this ad demonstrates
-3. PERSONA / MARKET — who is being targeted (specific enough to know their pain, language, and context)
+2. PERSONA — who is being targeted (specific enough to know their pain and context)
+3. ANGLE / USP — what specific problem, benefit, or proof point this ad demonstrates
 
-Without all three locked in, your concepts will miss. So your first job is to decide: do I have all three clearly enough to generate on-target concepts?
+Assess the concept and return questions for any axes that are missing or ambiguous. Return questions in priority order: product first, then persona, then angle. Max 3 questions total.
 
-━━━ WHEN TO ASK (type: "clarify") ━━━
-Ask if ANY of the three are missing or ambiguous:
+RETURN EMPTY questions array ONLY if a professional copywriter could start writing immediately — all three axes clear with zero assumptions needed. This bar is high. When in doubt, ask.
 
-- Product missing/unclear: "dust", "bathroom counter", "nightstand" → could be dozens of products
-- Angle missing: you know the product but not what USP/problem to show → ask
-- Persona missing: you know the product but not who → ask (same product, different personas = completely different concepts)
+Rules for questions:
+- Each question gets 4-5 tappable options tailored to what the concept is likely about
+- Last option is always "Other / something else"
+- Keep questions short and conversational
 
-ALWAYS ask if the input is a scene description without a clear product.
-ALWAYS ask if the product is known but the persona or angle could meaningfully change the concepts.
+━━━ MUST ask (empty array would be wrong) ━━━
+"dust" → product unknown (cleaning spray? vacuum? air purifier? allergy pill?) → ask product, then persona
+"cluttered nightstand" → product unknown → ask product
+"nasal spray bottles" → product known, but persona and angle both unclear → ask both
+"bathroom counter" → product unknown → ask
+"tired person waking up" → product unknown → ask
 
-━━━ WHEN TO IDEATE (type: "ideate") ━━━
-Only skip questions if all three are clear from the input:
-- "red irritated skin after shaving legs with a cheap razor" → product (razor), angle (irritation/cheap), persona (women shaving) ✓
-- "cracked dry heels" → product category (foot cream), angle (dryness/cracking), persona (anyone with dry feet) ✓
+━━━ Can return empty (rare — all three truly obvious) ━━━
+"red irritated skin after shaving legs with a cheap drugstore razor" → product=razor, persona=women shaving legs, angle=irritation ✓
+"cracked painful dry heels" → product=foot cream, persona=dry skin sufferers, angle=severity ✓
+"someone squinting at phone screen in direct sunlight" → product=screen protector/app, persona=outdoor phone users, angle=visibility problem ✓
 
-━━━ HOW TO ASK ━━━
-Ask 1-3 questions max, in this priority order:
-1. Product first (if unclear)
-2. Persona/market second (if unclear)  
-3. Angle/USP third (if unclear)
+━━━ Question option format ━━━
+For "nasal spray": product options → ["Nasal spray / decongestant", "Allergy pill / antihistamine", "Air purifier / humidifier", "Saline rinse / neti pot", "Other / something else"]
+For "razor": persona options → ["Women shaving legs", "Women shaving underarms", "Men shaving face", "People with sensitive skin", "Other / something else"]
+Angle options are always: ["Problem — showing the suffering", "Relief — product working", "Before vs after", "Comparison vs competitor", "Other / something else"]`;
 
-Keep questions short. Provide 4-5 tappable options that cover the most likely answers for that product category. Always end options with "Other / something else".
-
-Example questions:
-- "What product is this ad for?" → ["Nasal spray / decongestant", "Allergy pill / antihistamine", "Air purifier", "Neti pot / saline rinse", "Other / something else"]
-- "Who are you targeting?" → ["Chronic allergy sufferers", "Seasonal allergy sufferers", "People with sinus infections", "Dust/pet dander sensitive", "Other / something else"]
-- "What angle are you testing?" → ["Problem awareness — showing the suffering", "Product in use — showing relief", "Before vs after", "Comparison vs competitor", "Other / something else"]
-
-━━━ HOW TO IDEATE ━━━
-Once all three are locked in, generate concepts that exploit the confirmed product + persona + angle combination. 
+const IDEATION_SYSTEM_PROMPT = `You are a native advertising creative director. Generate highly targeted native ad image prompts for the confirmed product + persona + angle combination.
 
 NATIVE AD PROMPT RULES:
 - Must look like authentic user-generated iPhone content — NOT polished marketing
@@ -99,16 +84,18 @@ NATIVE AD PROMPT RULES:
 - NEVER include text overlays, timestamps, watermarks, or any instruction to show text in the image
 - Prompts must be purely visual and scene-descriptive
 
-VARIATION STRATEGY — vary one dimension at a time across the locked-in product/persona/angle:
-- Same problem, different environment (nightstand vs bathroom vs car)
+VARIATION STRATEGY — vary one dimension at a time, keeping product/persona/angle locked:
+- Same problem, different environment (nightstand vs bathroom vs car vs office)
 - Same environment, different emotional intensity (mild annoyance vs total desperation)
-- Same problem, different moment (onset vs peak vs aftermath)
-- Same product, different competitor comparison framing
+- Same problem, different moment in time (onset vs peak suffering vs aftermath)
+- Same product/problem, framed as competitor comparison
 
-ADDITIONAL CONCEPTS — suggest 2-3 adjacent angles to test for the SAME product and persona:
-- Different USP for same persona (e.g. if angle was "suffering", suggest "discovery" or "comparison vs competitor")
-- Different problem the same persona has that the same product solves
+ADDITIONAL CONCEPTS — suggest 2-3 adjacent angles for the SAME product and persona:
+- Different USP for same persona (if angle was "suffering", suggest "discovery" or "competitor comparison")
+- Different problem the same persona faces that the same product solves
 - Never drift to a different product or a different persona`;
+
+// ─── Route ───────────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
   const session = await getSession();
@@ -119,7 +106,8 @@ export async function POST(req: Request) {
     });
   }
 
-  const { concept, answers }: { concept: string; answers?: Record<string, string> } = await req.json();
+  const { concept, answers }: { concept: string; answers?: Record<string, string> } =
+    await req.json();
 
   if (!concept?.trim()) {
     return new Response(JSON.stringify({ error: "Concept is required" }), {
@@ -128,23 +116,43 @@ export async function POST(req: Request) {
     });
   }
 
-  // Build the prompt — append any clarification answers so Claude has full context
-  let prompt = concept;
-  if (answers && Object.keys(answers).length > 0) {
-    const answerLines = Object.entries(answers)
-      .map(([k, v]) => `${k}: ${v}`)
-      .join("\n");
-    prompt = `${concept}\n\nClarification answers:\n${answerLines}`;
+  const hasAnswers = answers && Object.keys(answers).length > 0;
+  const contextPrompt = hasAnswers
+    ? `${concept}\n\nConfirmed context:\n${Object.entries(answers).map(([k, v]) => `${k}: ${v}`).join("\n")}`
+    : concept;
+
+  // ── Step 1: clarification check ──────────────────────────────────────────────
+  // Dedicated call whose only job is deciding what questions are needed.
+  // Separating this prevents Claude from "helpfully" skipping to content.
+  if (!hasAnswers) {
+    const { object: clarification } = await generateObject({
+      model: anthropic("claude-sonnet-4-5"),
+      system: CLARIFICATION_SYSTEM_PROMPT,
+      prompt: contextPrompt,
+      schema: ClarificationSchema,
+    });
+
+    if (clarification.questions.length > 0) {
+      const response: ClarificationResult = {
+        type: "clarify",
+        questions: clarification.questions,
+      };
+      return new Response(JSON.stringify(response), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
   }
 
-  const { object } = await generateObject({
+  // ── Step 2: ideation ─────────────────────────────────────────────────────────
+  const { object: ideation } = await generateObject({
     model: anthropic("claude-sonnet-4-5"),
     system: IDEATION_SYSTEM_PROMPT,
-    prompt,
-    schema: IdeationResponseSchema,
+    prompt: contextPrompt,
+    schema: IdeationSchema,
   });
 
-  return new Response(JSON.stringify(object), {
+  const response: IdeationResult = { type: "ideate", ...ideation };
+  return new Response(JSON.stringify(response), {
     headers: { "Content-Type": "application/json" },
   });
 }
