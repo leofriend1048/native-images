@@ -134,6 +134,7 @@ interface ReviewResult {
 }
 
 interface GenerationSettings {
+  model: "google/nano-banana-pro" | "google/nano-banana-2";
   aspect_ratio: string;
   resolution: string;
   output_format: string;
@@ -986,6 +987,7 @@ function ChatSession({
   onRefreshSidebar: () => void;
 }) {
   const [settings, setSettings] = useState<GenerationSettings>({
+    model: "google/nano-banana-pro",
     aspect_ratio: "4:5",
     resolution: "1K",
     output_format: "jpg",
@@ -1512,6 +1514,27 @@ function ChatSession({
 
             {showSettings ? (
               <div className="flex items-center gap-2 flex-wrap">
+                {/* Model selector */}
+                <Select
+                  value={settings.model}
+                  onValueChange={(v: GenerationSettings["model"]) =>
+                    setSettings((s) => ({
+                      ...s,
+                      model: v,
+                      // NB2 doesn't have 512px on Pro; Pro doesn't have safety on NB2 — reset to safe defaults
+                      resolution: v === "google/nano-banana-2" && s.resolution === "1K" ? "1K" : s.resolution,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="h-7 text-xs w-auto min-w-[160px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="google/nano-banana-pro">Nano Banana Pro</SelectItem>
+                    <SelectItem value="google/nano-banana-2">Nano Banana 2</SelectItem>
+                  </SelectContent>
+                </Select>
+
                 <Select
                   value={settings.aspect_ratio}
                   onValueChange={(v) =>
@@ -1542,6 +1565,9 @@ function ChatSession({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    {settings.model === "google/nano-banana-2" && (
+                      <SelectItem value="512px">512px</SelectItem>
+                    )}
                     <SelectItem value="1K">1K</SelectItem>
                     <SelectItem value="2K">2K</SelectItem>
                     <SelectItem value="4K">4K</SelectItem>
@@ -1563,24 +1589,30 @@ function ChatSession({
                   </SelectContent>
                 </Select>
 
-                <Select
-                  value={settings.safety_filter_level}
-                  onValueChange={(v) =>
-                    setSettings((s) => ({ ...s, safety_filter_level: v }))
-                  }
-                >
-                  <SelectTrigger className="h-7 text-xs w-auto min-w-[130px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="block_only_high">Safety: Low block</SelectItem>
-                    <SelectItem value="block_medium_and_above">Safety: Med block</SelectItem>
-                    <SelectItem value="block_low_and_above">Safety: High block</SelectItem>
-                  </SelectContent>
-                </Select>
+                {/* Safety filter only available on Nano Banana Pro */}
+                {settings.model === "google/nano-banana-pro" && (
+                  <Select
+                    value={settings.safety_filter_level}
+                    onValueChange={(v) =>
+                      setSettings((s) => ({ ...s, safety_filter_level: v }))
+                    }
+                  >
+                    <SelectTrigger className="h-7 text-xs w-auto min-w-[130px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="block_only_high">Safety: Low block</SelectItem>
+                      <SelectItem value="block_medium_and_above">Safety: Med block</SelectItem>
+                      <SelectItem value="block_low_and_above">Safety: High block</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             ) : (
               <div className="flex items-center gap-1.5">
+                <Badge variant="secondary" className="text-xs h-5 px-1.5">
+                  {settings.model === "google/nano-banana-2" ? "NB2" : "NB Pro"}
+                </Badge>
                 <Badge variant="secondary" className="text-xs h-5 px-1.5">
                   {settings.aspect_ratio}
                 </Badge>

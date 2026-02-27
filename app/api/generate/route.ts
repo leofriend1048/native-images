@@ -83,6 +83,7 @@ export async function POST(req: Request) {
   }: {
     messages: UIMessage[];
     settings: {
+      model?: string;
       aspect_ratio: string;
       resolution: string;
       output_format: string;
@@ -186,14 +187,21 @@ export async function POST(req: Request) {
           image_input?: string[];
         }) => {
           try {
+            const modelId = settings.model || "google/nano-banana-pro";
+            const isNB2 = modelId === "google/nano-banana-2";
+
             const input: Record<string, unknown> = {
               prompt,
               aspect_ratio: settings.aspect_ratio || "4:5",
               resolution: settings.resolution || "1K",
               output_format: settings.output_format || "jpg",
-              safety_filter_level:
-                settings.safety_filter_level || "block_only_high",
             };
+
+            // safety_filter_level is only supported by Nano Banana Pro
+            if (!isNB2) {
+              input.safety_filter_level =
+                settings.safety_filter_level || "block_only_high";
+            }
 
             // Merge Claude-provided URLs with server-extracted reference images.
             // Only accept data: URLs from Claude — HTTP URLs it hallucinates or
@@ -208,7 +216,7 @@ export async function POST(req: Request) {
               input.image_input = allImages.slice(0, 14);
             }
 
-            const output = await replicate.run("google/nano-banana-pro", {
+            const output = await replicate.run(modelId as `${string}/${string}`, {
               input,
             });
 
