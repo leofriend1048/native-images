@@ -26,11 +26,13 @@ CRITICAL IMAGE RULES — these MUST be followed or the image fails:
 - Prompts must be purely visual and descriptive — never include instructions to add text
 
 PROMPT QUALITY RULES:
-- Be specific about lighting: "soft window light", "harsh fluorescent bathroom light", "golden hour", etc.
+- Be specific about lighting: "soft window light", "natural morning light", "golden hour sunlight", "bright bathroom overhead light", etc.
 - Be specific about composition: "extreme close-up", "bird's eye view", "45-degree angle", "slightly out of focus background"
-- Be specific about surface/environment details that ground the scene
-- Include texture details that make it feel real: "water spots on counter", "slightly crumpled tissue", "worn edge"
-- The image should look like a real person grabbed their phone and snapped it — imperfect, spontaneous
+- Be specific about surface/environment details that ground the scene — clean and tidy, not dirty or grimy
+- The iPhone/lo-fi quality comes from LIGHTING and FRAMING, not filth: slight motion blur, natural shadows, candid angle, real depth of field
+- Environments must be CLEAN and PRESENTABLE — a real person's tidy home, not a dingy or neglected space
+- NEVER include: dirty surfaces, stains, grime, water spots, mold, dust buildup, worn/damaged items, or anything that reads as unsanitary
+- Imperfection means: slightly off-center framing, natural skin, authentic expressions, real hand-held camera shake — NOT dirt or decay
 
 PHASE 2 — QUALITY REVIEW
 After receiving the image URL from generateImage, you MUST review it by calling the reviewImage tool.
@@ -38,7 +40,7 @@ Examine the image carefully against the Native Ad Performance Checklist.
 
 NATIVE AD PERFORMANCE CHECKLIST:
 1. Looks like authentic UGC — NOT polished, branded, or stock-photo aesthetic
-2. iPhone/lo-fi aesthetic is visible (natural light, imperfect framing, real environment)
+2. iPhone/lo-fi aesthetic is visible (natural light, candid framing, real environment) — clean and presentable, not dirty or grimy
 3. Clear emotional hook present — visceral, relatable, or genuinely scroll-stopping
 4. Subject directly and clearly matches the requested concept
 5. No text overlays, timestamps, or watermarks added to the image
@@ -85,9 +87,14 @@ export async function POST(req: Request) {
     settings: {
       model?: string;
       aspect_ratio: string;
+      // Google
       resolution: string;
       output_format: string;
       safety_filter_level: string;
+      // Seedream
+      size?: string;
+      // Ideogram
+      magic_prompt_option?: string;
     };
   } = await req.json();
 
@@ -116,6 +123,19 @@ export async function POST(req: Request) {
     }
   }
 
+  const modelMessages = await convertToModelMessages(messages);
+  console.log("[generate] model messages:", JSON.stringify(
+    modelMessages.map((m) => ({
+      role: m.role,
+      tools: (m as { content?: unknown[] }).content
+        ? (m as { content: Array<{ type: string; toolCallId?: string; toolName?: string }> }).content
+            .filter((c) => c.type === "tool-call" || c.type === "tool-result")
+            .map((c) => `${c.type}:${c.toolName ?? ""}(${c.toolCallId ?? ""})`)
+        : [],
+    })),
+    null, 2
+  ));
+
   const result = streamText({
     model: anthropic("claude-sonnet-4-5"),
     // Extended thinking surfaces Claude's reasoning in the UI via the
@@ -127,7 +147,7 @@ export async function POST(req: Request) {
       },
     },
     system: SYSTEM_PROMPT,
-    messages: await convertToModelMessages(messages),
+    messages: modelMessages,
     // Allow up to 10 steps: up to 3x (approveRetry + generateImage + reviewImage) + 1 final text
     stopWhen: stepCountIs(10),
     // After each generateImage call, inject the resulting image URL as a vision
@@ -186,22 +206,9 @@ export async function POST(req: Request) {
           prompt: string;
           image_input?: string[];
         }) => {
+          const modelId = settings.model || "google/nano-banana-pro";
+          let input: Record<string, unknown> = {};
           try {
-            const modelId = settings.model || "google/nano-banana-pro";
-            const isNB2 = modelId === "google/nano-banana-2";
-
-            const input: Record<string, unknown> = {
-              prompt,
-              aspect_ratio: settings.aspect_ratio || "4:5",
-              resolution: settings.resolution || "1K",
-              output_format: settings.output_format || "jpg",
-            };
-
-            // safety_filter_level is only supported by Nano Banana Pro
-            if (!isNB2) {
-              input.safety_filter_level =
-                settings.safety_filter_level || "block_only_high";
-            }
 
             // Merge Claude-provided URLs with server-extracted reference images.
             // Only accept data: URLs from Claude — HTTP URLs it hallucinates or
@@ -212,16 +219,56 @@ export async function POST(req: Request) {
               ...(image_input ?? []).filter((url) => url.startsWith("data:")),
               ...referenceImages,
             ].filter((url, idx, arr) => arr.indexOf(url) === idx);
-            if (allImages.length > 0) {
-              input.image_input = allImages.slice(0, 14);
+
+            if (modelId === "bytedance/seedream-4.5") {
+              input = {
+                prompt,
+                aspect_ratio: settings.aspect_ratio || "4:5",
+                size: settings.size || "2K",
+                max_images: 1,
+                sequential_image_generation: "disabled",
+              };
+              if (allImages.length > 0) {
+                input.image_input = allImages.slice(0, 14);
+              }
+            } else if (modelId === "ideogram-ai/ideogram-v3-turbo") {
+              input = {
+                prompt,
+                aspect_ratio: settings.aspect_ratio || "4:5",
+                magic_prompt_option: settings.magic_prompt_option || "Auto",
+              };
+              // Ideogram uses style_reference_images, not image_input
+              if (allImages.length > 0) {
+                input.style_reference_images = allImages.slice(0, 3);
+              }
+            } else {
+              // Google Nano Banana Pro / NB2
+              const isNB2 = modelId === "google/nano-banana-2";
+              input = {
+                prompt,
+                aspect_ratio: settings.aspect_ratio || "4:5",
+                resolution: settings.resolution || "1K",
+                output_format: settings.output_format || "jpg",
+              };
+              if (!isNB2) {
+                input.safety_filter_level =
+                  settings.safety_filter_level || "block_only_high";
+              }
+              if (allImages.length > 0) {
+                input.image_input = allImages.slice(0, 14);
+              }
             }
 
             const output = await replicate.run(modelId as `${string}/${string}`, {
               input,
             });
 
-            const imageUrl =
-              typeof output === "string" ? output : String(output);
+            // Seedream returns an array of URLs; all other models return a string
+            const imageUrl = Array.isArray(output)
+              ? (output as string[])[0]
+              : typeof output === "string"
+              ? output
+              : String(output);
 
             return {
               success: true,
@@ -234,11 +281,11 @@ export async function POST(req: Request) {
               },
             };
           } catch (err) {
-            console.error("Replicate error:", err);
+            const message = err instanceof Error ? err.message : String(err);
+            console.error(`Replicate error [${modelId}]:`, message, "\nInput:", JSON.stringify(input, null, 2));
             return {
               success: false,
-              error:
-                err instanceof Error ? err.message : "Image generation failed",
+              error: message || "Image generation failed",
             };
           }
         },

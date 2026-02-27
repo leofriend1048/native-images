@@ -32,6 +32,20 @@ import {
   ToolOutput,
 } from "@/components/ai-elements/tool";
 import {
+  ModelSelector,
+  ModelSelectorTrigger,
+  ModelSelectorContent,
+  ModelSelectorDialog,
+  ModelSelectorInput,
+  ModelSelectorList,
+  ModelSelectorEmpty,
+  ModelSelectorGroup,
+  ModelSelectorItem,
+  ModelSelectorLogo,
+  ModelSelectorLogoGroup,
+  ModelSelectorName,
+} from "@/components/ai-elements/model-selector";
+import {
   PromptInput,
   PromptInputTextarea,
   PromptInputHeader,
@@ -88,7 +102,6 @@ import {
   DownloadIcon,
   ImageIcon,
   RefreshCcwIcon,
-  Settings2Icon,
   UserCircleIcon,
   ShieldIcon,
   Maximize2Icon,
@@ -134,11 +147,16 @@ interface ReviewResult {
 }
 
 interface GenerationSettings {
-  model: "google/nano-banana-pro" | "google/nano-banana-2";
+  model: "google/nano-banana-pro" | "google/nano-banana-2" | "bytedance/seedream-4.5" | "ideogram-ai/ideogram-v3-turbo";
   aspect_ratio: string;
+  // Google models
   resolution: string;
   output_format: string;
   safety_filter_level: string;
+  // Seedream
+  size: string;
+  // Ideogram
+  magic_prompt_option: string;
 }
 
 interface ClarificationQuestion {
@@ -992,8 +1010,9 @@ function ChatSession({
     resolution: "1K",
     output_format: "jpg",
     safety_filter_level: "block_only_high",
+    size: "2K",
+    magic_prompt_option: "Auto",
   });
-  const [showSettings, setShowSettings] = useState(false);
   const [checkpoints, setCheckpoints] = useState<Set<string>>(new Set());
   const lastSuccessId = useRef<string | null>(null);
 
@@ -1489,16 +1508,6 @@ function ChatSession({
       <div className="shrink-0 border-t bg-background">
         <div className="max-w-3xl mx-auto px-4 py-3 space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 gap-1.5 text-xs text-muted-foreground"
-              onClick={() => setShowSettings((v) => !v)}
-            >
-              <Settings2Icon className="h-3.5 w-3.5" />
-              {showSettings ? "Hide settings" : "Settings"}
-            </Button>
-
             {/* Quick-action to re-run ideation on an existing conversation */}
             {messages.length > 0 && phase === "idle" && !isStreaming && (
               <Button
@@ -1512,29 +1521,86 @@ function ChatSession({
               </Button>
             )}
 
-            {showSettings ? (
-              <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
                 {/* Model selector */}
-                <Select
-                  value={settings.model}
-                  onValueChange={(v: GenerationSettings["model"]) =>
-                    setSettings((s) => ({
-                      ...s,
-                      model: v,
-                      // NB2 doesn't have 512px on Pro; Pro doesn't have safety on NB2 — reset to safe defaults
-                      resolution: v === "google/nano-banana-2" && s.resolution === "1K" ? "1K" : s.resolution,
-                    }))
-                  }
-                >
-                  <SelectTrigger className="h-7 text-xs w-auto min-w-[160px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="google/nano-banana-pro">Nano Banana Pro</SelectItem>
-                    <SelectItem value="google/nano-banana-2">Nano Banana 2</SelectItem>
-                  </SelectContent>
-                </Select>
+                <ModelSelector>
+                  <ModelSelectorTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 font-normal">
+                      <ModelSelectorLogo
+                        provider={
+                          settings.model.startsWith("google/") ? "google"
+                          : settings.model.startsWith("bytedance/") ? "bytedance"
+                          : "ideogram"
+                        }
+                        className="size-3.5"
+                      />
+                      {settings.model === "google/nano-banana-2" ? "Nano Banana 2"
+                        : settings.model === "bytedance/seedream-4.5" ? "Seedream 4.5"
+                        : settings.model === "ideogram-ai/ideogram-v3-turbo" ? "Ideogram v3 Turbo"
+                        : "Nano Banana Pro"}
+                    </Button>
+                  </ModelSelectorTrigger>
+                  <ModelSelectorContent title="Select model">
+                    <ModelSelectorDialog title="Select model" description="Choose an image generation model">
+                      <ModelSelectorInput placeholder="Search models…" />
+                      <ModelSelectorList>
+                        <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
+                        <ModelSelectorGroup heading="Google">
+                          <ModelSelectorItem
+                            value="nano-banana-pro"
+                            selected={settings.model === "google/nano-banana-pro"}
+                            onSelect={() => setSettings((s) => ({
+                              ...s,
+                              model: "google/nano-banana-pro",
+                              resolution: s.resolution === "512px" ? "1K" : s.resolution,
+                            }))}
+                          >
+                            <ModelSelectorLogoGroup>
+                              <ModelSelectorLogo provider="google" />
+                              <ModelSelectorName>Nano Banana Pro</ModelSelectorName>
+                            </ModelSelectorLogoGroup>
+                          </ModelSelectorItem>
+                          <ModelSelectorItem
+                            value="nano-banana-2"
+                            selected={settings.model === "google/nano-banana-2"}
+                            onSelect={() => setSettings((s) => ({ ...s, model: "google/nano-banana-2" }))}
+                          >
+                            <ModelSelectorLogoGroup>
+                              <ModelSelectorLogo provider="google" />
+                              <ModelSelectorName>Nano Banana 2</ModelSelectorName>
+                            </ModelSelectorLogoGroup>
+                          </ModelSelectorItem>
+                        </ModelSelectorGroup>
+                        <ModelSelectorGroup heading="Bytedance">
+                          <ModelSelectorItem
+                            value="seedream-4.5"
+                            selected={settings.model === "bytedance/seedream-4.5"}
+                            onSelect={() => setSettings((s) => ({ ...s, model: "bytedance/seedream-4.5" }))}
+                          >
+                            <ModelSelectorLogoGroup>
+                              <ModelSelectorLogo provider="bytedance" />
+                              <ModelSelectorName>Seedream 4.5</ModelSelectorName>
+                            </ModelSelectorLogoGroup>
+                          </ModelSelectorItem>
+                        </ModelSelectorGroup>
+                        <ModelSelectorGroup heading="Ideogram">
+                          <ModelSelectorItem
+                            value="ideogram-v3-turbo"
+                            selected={settings.model === "ideogram-ai/ideogram-v3-turbo"}
+                            onSelect={() => setSettings((s) => ({ ...s, model: "ideogram-ai/ideogram-v3-turbo" }))}
+                          >
+                            <ModelSelectorLogoGroup>
+                              <ModelSelectorLogo provider="ideogram" />
+                              <ModelSelectorName>Ideogram v3 Turbo</ModelSelectorName>
+                            </ModelSelectorLogoGroup>
+                          </ModelSelectorItem>
+                        </ModelSelectorGroup>
+                      </ModelSelectorList>
+                    </ModelSelectorDialog>
+                  </ModelSelectorContent>
+                </ModelSelector>
 
+                {/* Aspect ratio — all models */}
                 <Select
                   value={settings.aspect_ratio}
                   onValueChange={(v) =>
@@ -1555,75 +1621,98 @@ function ChatSession({
                   </SelectContent>
                 </Select>
 
-                <Select
-                  value={settings.resolution}
-                  onValueChange={(v) =>
-                    setSettings((s) => ({ ...s, resolution: v }))
-                  }
-                >
-                  <SelectTrigger className="h-7 text-xs w-auto min-w-[70px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {settings.model === "google/nano-banana-2" && (
-                      <SelectItem value="512px">512px</SelectItem>
+                {/* Google models: resolution + output format */}
+                {settings.model.startsWith("google/") && (
+                  <>
+                    <Select
+                      value={settings.resolution}
+                      onValueChange={(v) =>
+                        setSettings((s) => ({ ...s, resolution: v }))
+                      }
+                    >
+                      <SelectTrigger className="h-7 text-xs w-auto min-w-[70px]">
+                        <span className="text-muted-foreground">Res:&nbsp;</span><SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {settings.model === "google/nano-banana-2" && (
+                          <SelectItem value="512px">512px</SelectItem>
+                        )}
+                        <SelectItem value="1K">1K</SelectItem>
+                        <SelectItem value="2K">2K</SelectItem>
+                        <SelectItem value="4K">4K</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={settings.output_format}
+                      onValueChange={(v) =>
+                        setSettings((s) => ({ ...s, output_format: v }))
+                      }
+                    >
+                      <SelectTrigger className="h-7 text-xs w-auto min-w-[70px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="jpg">JPEG</SelectItem>
+                        <SelectItem value="png">PNG</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {settings.model === "google/nano-banana-pro" && (
+                      <Select
+                        value={settings.safety_filter_level}
+                        onValueChange={(v) =>
+                          setSettings((s) => ({ ...s, safety_filter_level: v }))
+                        }
+                      >
+                        <SelectTrigger className="h-7 text-xs w-auto min-w-[130px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="block_only_high">Safety: Low block</SelectItem>
+                          <SelectItem value="block_medium_and_above">Safety: Med block</SelectItem>
+                          <SelectItem value="block_low_and_above">Safety: High block</SelectItem>
+                        </SelectContent>
+                      </Select>
                     )}
-                    <SelectItem value="1K">1K</SelectItem>
-                    <SelectItem value="2K">2K</SelectItem>
-                    <SelectItem value="4K">4K</SelectItem>
-                  </SelectContent>
-                </Select>
+                  </>
+                )}
 
-                <Select
-                  value={settings.output_format}
-                  onValueChange={(v) =>
-                    setSettings((s) => ({ ...s, output_format: v }))
-                  }
-                >
-                  <SelectTrigger className="h-7 text-xs w-auto min-w-[70px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="jpg">JPEG</SelectItem>
-                    <SelectItem value="png">PNG</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                {/* Safety filter only available on Nano Banana Pro */}
-                {settings.model === "google/nano-banana-pro" && (
+                {/* Seedream: size (2K / 4K) */}
+                {settings.model === "bytedance/seedream-4.5" && (
                   <Select
-                    value={settings.safety_filter_level}
+                    value={settings.size}
                     onValueChange={(v) =>
-                      setSettings((s) => ({ ...s, safety_filter_level: v }))
+                      setSettings((s) => ({ ...s, size: v }))
                     }
                   >
-                    <SelectTrigger className="h-7 text-xs w-auto min-w-[130px]">
+                    <SelectTrigger className="h-7 text-xs w-auto min-w-[60px]">
+                      <span className="text-muted-foreground">Res:&nbsp;</span><SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="2K">2K</SelectItem>
+                      <SelectItem value="4K">4K</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {/* Ideogram: magic prompt */}
+                {settings.model === "ideogram-ai/ideogram-v3-turbo" && (
+                  <Select
+                    value={settings.magic_prompt_option}
+                    onValueChange={(v) =>
+                      setSettings((s) => ({ ...s, magic_prompt_option: v }))
+                    }
+                  >
+                    <SelectTrigger className="h-7 text-xs w-auto min-w-[120px]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="block_only_high">Safety: Low block</SelectItem>
-                      <SelectItem value="block_medium_and_above">Safety: Med block</SelectItem>
-                      <SelectItem value="block_low_and_above">Safety: High block</SelectItem>
+                      <SelectItem value="Auto">Magic Prompt: Auto</SelectItem>
+                      <SelectItem value="On">Magic Prompt: On</SelectItem>
+                      <SelectItem value="Off">Magic Prompt: Off</SelectItem>
                     </SelectContent>
                   </Select>
                 )}
               </div>
-            ) : (
-              <div className="flex items-center gap-1.5">
-                <Badge variant="secondary" className="text-xs h-5 px-1.5">
-                  {settings.model === "google/nano-banana-2" ? "NB2" : "NB Pro"}
-                </Badge>
-                <Badge variant="secondary" className="text-xs h-5 px-1.5">
-                  {settings.aspect_ratio}
-                </Badge>
-                <Badge variant="secondary" className="text-xs h-5 px-1.5">
-                  {settings.resolution}
-                </Badge>
-                <Badge variant="secondary" className="text-xs h-5 px-1.5">
-                  {settings.output_format.toUpperCase()}
-                </Badge>
-              </div>
-            )}
 
             {queue.length > 0 && (
               <div className="w-full mt-1">
