@@ -124,7 +124,10 @@ export async function POST(req: Request) {
   // ── Step 1: clarification check ──────────────────────────────────────────────
   // Dedicated call whose only job is deciding what questions are needed.
   // Separating this prevents Claude from "helpfully" skipping to content.
-  if (!hasAnswers) {
+  // Only run when `answers` is absent entirely — if the user explicitly
+  // skipped (answers = {}), we still bypass clarification and go straight
+  // to ideation so "Skip" doesn't loop back to the same question.
+  if (answers === undefined) {
     const { object: clarification } = await generateObject({
       model: anthropic("claude-sonnet-4-5"),
       system: CLARIFICATION_SYSTEM_PROMPT,
