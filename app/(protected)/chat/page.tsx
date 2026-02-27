@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
+import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import type { ReasoningUIPart, UIMessage } from "ai";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -907,19 +907,11 @@ function ChatSession({
     // AI SDK v6 Chat constructor uses `messages` (not `initialMessages`).
     // This populates the session with history when a saved chat is loaded.
     messages: preloadedMessages,
-    // After addToolResult is called for `approveRetry` (the human-in-the-loop
-    // tool that has no server-side execute), the stream must be explicitly
-    // resumed. sendAutomaticallyWhen returns true when such a result is ready,
-    // causing the SDK to re-submit the conversation to the AI automatically.
-    sendAutomaticallyWhen: ({ messages: msgs }) => {
-      const last = msgs.at(-1);
-      if (!last || last.role !== "assistant") return false;
-      return last.parts.some((p) => {
-        const tp = p as AnyToolPart;
-        const name = tp.toolName ?? tp.type?.replace(/^tool-/, "") ?? "";
-        return name === "approveRetry" && tp.state === "output-available";
-      });
-    },
+    // Resume the stream automatically once all tool results are ready.
+    // The built-in helper handles approveRetry (human-in-the-loop) and any
+    // other tool that produces a result, preventing "Tool result is missing"
+    // errors caused by the previous narrow per-tool predicate.
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     onError: (err) => {
       toast.error(err.message || "Something went wrong");
       setPhase("idle");

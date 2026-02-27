@@ -195,10 +195,13 @@ export async function POST(req: Request) {
                 settings.safety_filter_level || "block_only_high",
             };
 
-            // Merge Claude-provided URLs with server-extracted reference images,
-            // deduplicate, and cap at the API limit of 14.
+            // Merge Claude-provided URLs with server-extracted reference images.
+            // Only accept data: URLs from Claude — HTTP URLs it hallucinates or
+            // infers from image metadata (e.g. CDN origins) will 404 when
+            // Replicate tries to fetch them. Our server-extracted referenceImages
+            // are always data: URLs so they are unconditionally trusted.
             const allImages = [
-              ...(image_input ?? []),
+              ...(image_input ?? []).filter((url) => url.startsWith("data:")),
               ...referenceImages,
             ].filter((url, idx, arr) => arr.indexOf(url) === idx);
             if (allImages.length > 0) {
