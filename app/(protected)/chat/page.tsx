@@ -146,7 +146,20 @@ interface IdeationResult {
   additionalConcepts: string[];
 }
 
-type Phase = "idle" | "ideating" | "awaiting" | "generating";
+interface ClarificationQuestion {
+  id: string;
+  question: string;
+  options: string[];
+}
+
+interface ClarificationResult {
+  needsClarification: true;
+  questions: ClarificationQuestion[];
+}
+
+type IdeationResponse = IdeationResult | ClarificationResult;
+
+type Phase = "idle" | "ideating" | "clarifying" | "awaiting" | "generating";
 
 interface ChatSummary {
   id: string;
@@ -584,6 +597,126 @@ function AttachmentPreviewsInInput() {
   );
 }
 
+// ─── Clarification Panel ──────────────────────────────────────────────────────
+
+function ClarificationPanel({
+  concept,
+  questions,
+  onSubmit,
+}: {
+  concept: string;
+  questions: ClarificationQuestion[];
+  onSubmit: (answers: Record<string, string>) => void;
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const current = questions[currentIndex];
+  const isLast = currentIndex === questions.length - 1;
+
+  const handleSelect = (option: string) => {
+    setSelected(option);
+  };
+
+  const handleNext = () => {
+    if (!selected) return;
+    const newAnswers = { ...answers, [current.id]: selected };
+    setAnswers(newAnswers);
+    setSelected(null);
+
+    if (isLast) {
+      onSubmit(newAnswers);
+    } else {
+      setCurrentIndex((i) => i + 1);
+    }
+  };
+
+  const handleSkip = () => {
+    onSubmit(answers);
+  };
+
+  return (
+    <div className="space-y-3">
+      <Message from="user">
+        <MessageContent>{concept}</MessageContent>
+      </Message>
+
+      <div className="rounded-xl border bg-card p-4 space-y-4">
+        {/* Progress dots */}
+        {questions.length > 1 && (
+          <div className="flex items-center gap-1.5">
+            {questions.map((_, i) => (
+              <div
+                key={i}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i < currentIndex
+                    ? "w-4 bg-primary"
+                    : i === currentIndex
+                    ? "w-4 bg-primary"
+                    : "w-1.5 bg-muted-foreground/30"
+                }`}
+              />
+            ))}
+            <span className="text-xs text-muted-foreground ml-1">
+              {currentIndex + 1} of {questions.length}
+            </span>
+          </div>
+        )}
+
+        <p className="text-sm font-medium leading-snug">{current.question}</p>
+
+        <div className="flex flex-col gap-1.5">
+          {current.options.map((option) => (
+            <button
+              key={option}
+              onClick={() => handleSelect(option)}
+              className={`text-left text-sm px-3 py-2.5 rounded-lg border transition-all duration-150 ${
+                selected === option
+                  ? "border-primary bg-primary/5 text-foreground font-medium"
+                  : "border-border bg-background hover:bg-accent hover:border-accent text-foreground"
+              }`}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2 pt-1">
+          <Button
+            size="sm"
+            className="h-8 text-xs gap-1.5"
+            disabled={!selected}
+            onClick={handleNext}
+          >
+            {isLast ? (
+              <>
+                <SparklesIcon className="h-3.5 w-3.5" />
+                Generate concepts
+              </>
+            ) : (
+              <>
+                Next
+                <span className="opacity-60">→</span>
+              </>
+            )}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 text-xs text-muted-foreground"
+            onClick={handleSkip}
+          >
+            Skip
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Ideation Panel ───────────────────────────────────────────────────────────
+
 function IdeationPanel({
   concept,
   ideation,
@@ -838,6 +971,7 @@ function ChatSession({
   const [phase, setPhase] = useState<Phase>("idle");
   const [currentConcept, setCurrentConcept] = useState("");
   const [ideation, setIdeation] = useState<IdeationResult | null>(null);
+  const [clarification, setClarification] = useState<ClarificationResult | null>(null);
   const [queue, setQueue] = useState<string[]>([]);
 
   const queueRef = useRef<string[]>([]);
@@ -980,6 +1114,57 @@ function ChatSession({
     toast.success("Added to queue");
   }, []);
 
+  // ── Shared ideation runner ─────────────────────────────────────────────────
+
+  // Fetches /api/ideate and handles both the clarification and ideation paths.
+  // Pass `answers` when re-running after the user has answered clarifying questions.
+  const runIdeation = useCallback(
+    async (concept: string, answers?: Record<string, string>) => {
+      setCurrentConcept(concept);
+      setIdeation(null);
+      setClarification(null);
+      setPhase("ideating");
+
+      const abortController = new AbortController();
+      ideationAbortRef.current = abortController;
+
+      try {
+        const res = await fetch("/api/ideate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ concept, answers }),
+          signal: abortController.signal,
+        });
+        if (!res.ok) throw new Error("Ideation failed");
+        const result: IdeationResponse = await res.json();
+
+        if ("needsClarification" in result && result.needsClarification) {
+          setClarification(result);
+          setPhase("clarifying");
+        } else {
+          setIdeation(result as IdeationResult);
+          setPhase("awaiting");
+        }
+      } catch (err) {
+        if ((err as Error).name === "AbortError") return;
+        console.error("Ideation error:", err);
+        toast.error("Failed to ideate — generating directly");
+        triggerGeneration(concept);
+      } finally {
+        ideationAbortRef.current = null;
+      }
+    },
+    [triggerGeneration]
+  );
+
+  // Called when the user submits answers to clarifying questions.
+  const handleClarificationSubmit = useCallback(
+    (answers: Record<string, string>) => {
+      runIdeation(currentConcept, answers);
+    },
+    [currentConcept, runIdeation]
+  );
+
   // ── Submit / suggestion handlers ───────────────────────────────────────────
 
   const handleSubmit = useCallback(
@@ -1009,78 +1194,26 @@ function ChatSession({
         return;
       }
 
-      setCurrentConcept(concept);
-      setIdeation(null);
-      setPhase("ideating");
-
-      const abortController = new AbortController();
-      ideationAbortRef.current = abortController;
-
-      try {
-        const res = await fetch("/api/ideate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ concept }),
-          signal: abortController.signal,
-        });
-        if (!res.ok) throw new Error("Ideation failed");
-        const result: IdeationResult = await res.json();
-        setIdeation(result);
-        setPhase("awaiting");
-      } catch (err) {
-        if ((err as Error).name === "AbortError") {
-          // User cancelled — already reset by handleCancel
-          return;
-        }
-        console.error("Ideation error:", err);
-        toast.error("Failed to ideate — generating directly");
-        triggerGeneration(concept);
-      } finally {
-        ideationAbortRef.current = null;
-      }
+      runIdeation(concept);
     },
-    [phase, messages.length, triggerGeneration]
+    [phase, messages.length, triggerGeneration, runIdeation]
   );
 
   const handleSuggestion = useCallback(
     async (text: string) => {
       if (phase !== "idle") return;
-      setCurrentConcept(text);
-      setIdeation(null);
-      setPhase("ideating");
-
-      const abortController = new AbortController();
-      ideationAbortRef.current = abortController;
-
-      try {
-        const res = await fetch("/api/ideate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ concept: text }),
-          signal: abortController.signal,
-        });
-        if (!res.ok) throw new Error("Ideation failed");
-        const result: IdeationResult = await res.json();
-        setIdeation(result);
-        setPhase("awaiting");
-      } catch (err) {
-        if ((err as Error).name === "AbortError") return;
-        triggerGeneration(text);
-      } finally {
-        ideationAbortRef.current = null;
-      }
+      runIdeation(text);
     },
-    [phase, triggerGeneration]
+    [phase, runIdeation]
   );
 
   const handleCancel = useCallback(() => {
-    // Cancel in-flight ideation fetch
     ideationAbortRef.current?.abort();
     ideationAbortRef.current = null;
-    // Stop streaming generation
     stop();
     setPhase("idle");
     setIdeation(null);
+    setClarification(null);
     setCurrentConcept("");
   }, [stop]);
 
@@ -1105,33 +1238,8 @@ function ChatSession({
     }
     if (!concept) return;
 
-    setCurrentConcept(concept);
-    setIdeation(null);
-    setPhase("ideating");
-
-    const abortController = new AbortController();
-    ideationAbortRef.current = abortController;
-
-    try {
-      const res = await fetch("/api/ideate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ concept }),
-        signal: abortController.signal,
-      });
-      if (!res.ok) throw new Error("Ideation failed");
-      const result: IdeationResult = await res.json();
-      setIdeation(result);
-      setPhase("awaiting");
-    } catch (err) {
-      if ((err as Error).name === "AbortError") return;
-      console.error("Re-ideation error:", err);
-      toast.error("Failed to generate ideas");
-      setPhase("idle");
-    } finally {
-      ideationAbortRef.current = null;
-    }
-  }, [phase, status, currentConcept, messages]);
+    runIdeation(concept);
+  }, [phase, status, currentConcept, messages, runIdeation]);
 
   const isStreaming = status === "streaming" || status === "submitted";
   const isInputDisabled = phase !== "idle" || isStreaming;
@@ -1173,10 +1281,17 @@ function ChatSession({
               </div>
             ) : (
               <Fragment>
-                {/* Show IdeationPanel at the TOP only when there are no messages yet
-                    (first ideation on a fresh chat). For re-ideation on an existing
-                    conversation it is rendered at the BOTTOM so it doesn't push the
-                    whole history out of view. */}
+                {/* Show clarification / ideation panel at the TOP only when there
+                    are no messages yet (first ideation on a fresh chat). For
+                    re-ideation on an existing conversation it is rendered at the
+                    BOTTOM so it doesn't push the whole history out of view. */}
+                {messages.length === 0 && phase === "clarifying" && clarification && (
+                  <ClarificationPanel
+                    concept={currentConcept}
+                    questions={clarification.questions}
+                    onSubmit={handleClarificationSubmit}
+                  />
+                )}
                 {messages.length === 0 && (phase === "ideating" || phase === "awaiting") && (
                   <IdeationPanel
                     concept={currentConcept}
@@ -1312,6 +1427,13 @@ function ChatSession({
                 ))}
 
                 {/* Re-ideation panel — appears at the bottom after existing messages */}
+                {messages.length > 0 && phase === "clarifying" && clarification && (
+                  <ClarificationPanel
+                    concept={currentConcept}
+                    questions={clarification.questions}
+                    onSubmit={handleClarificationSubmit}
+                  />
+                )}
                 {messages.length > 0 && (phase === "ideating" || phase === "awaiting") && (
                   <IdeationPanel
                     concept={currentConcept}
@@ -1503,6 +1625,8 @@ function ChatSession({
                 isInputDisabled
                   ? phase === "ideating"
                     ? "Ideating concepts — check above…"
+                    : phase === "clarifying"
+                    ? "Answer the questions above to continue…"
                     : phase === "awaiting"
                     ? "Choose a concept above or type a new one…"
                     : "Generating…"
