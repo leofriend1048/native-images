@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   LayersIcon,
   CopyIcon,
@@ -190,8 +191,29 @@ export default function DecksPage() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center h-40">
-            <div className="text-sm text-muted-foreground">Loading decks…</div>
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="rounded-xl border bg-card p-4 flex items-center gap-4">
+                <Skeleton className="shrink-0 w-10 h-10 rounded-lg" />
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-4 w-36 rounded" />
+                    <Skeleton className="h-4 w-12 rounded-full" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-3 w-16 rounded" />
+                    <Skeleton className="h-3 w-14 rounded" />
+                  </div>
+                  <Skeleton className="h-5 w-40 rounded" />
+                </div>
+                <div className="shrink-0 flex items-center gap-1.5">
+                  <Skeleton className="h-8 w-20 rounded-md" />
+                  <Skeleton className="h-8 w-14 rounded-md" />
+                  <Skeleton className="h-8 w-24 rounded-md" />
+                  <Skeleton className="h-8 w-8 rounded-md" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : decks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-60 gap-3 text-center">

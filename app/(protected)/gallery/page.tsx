@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -74,6 +75,7 @@ function GalleryCard({
 }) {
   const [promptOpen, setPromptOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   const handleDownload = async () => {
     try {
@@ -122,15 +124,19 @@ function GalleryCard({
 
         {/* Image — click to select, double-click to fullscreen */}
         <div
-          className="cursor-pointer"
+          className="cursor-pointer relative"
           onClick={onToggleSelect}
           onDoubleClick={(e) => { e.stopPropagation(); setFullscreen(true); }}
         >
+          {!imgLoaded && (
+            <Skeleton className="w-full rounded-none" style={{ aspectRatio: image.aspect_ratio?.replace(":", "/") ?? "4/5" }} />
+          )}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={image.url}
             alt={image.prompt}
-            className="w-full object-cover"
+            className={`w-full object-cover transition-opacity duration-300 ${imgLoaded ? "opacity-100" : "opacity-0 absolute inset-0"}`}
+            onLoad={() => setImgLoaded(true)}
           />
         </div>
 
@@ -421,8 +427,28 @@ export default function GalleryPage() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 py-4">
         {loading ? (
-          <div className="flex items-center justify-center h-40">
-            <div className="text-sm text-muted-foreground">Loading gallery…</div>
+          <div className="columns-2 sm:columns-3 lg:columns-4 xl:columns-5 gap-3 space-y-3 pb-24">
+            {[160, 220, 180, 200, 240, 170, 190, 210, 165, 230, 185, 195].map((h, i) => (
+              <div key={i} className="break-inside-avoid mb-3">
+                <div className="rounded-xl border bg-muted overflow-hidden">
+                  <Skeleton className="w-full rounded-none" style={{ height: h }} />
+                  <div className="p-2.5 space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <Skeleton className="h-4 w-10 rounded-full" />
+                      <Skeleton className="h-4 w-16 rounded-full" />
+                      <Skeleton className="h-3 w-12 rounded ml-auto" />
+                    </div>
+                    <Skeleton className="h-3 w-full rounded" />
+                    <Skeleton className="h-3 w-4/5 rounded" />
+                    <div className="flex gap-1 pt-0.5">
+                      <Skeleton className="h-6 w-12 rounded" />
+                      <Skeleton className="h-6 w-10 rounded" />
+                      <Skeleton className="h-6 w-14 rounded" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 gap-3 text-center">
