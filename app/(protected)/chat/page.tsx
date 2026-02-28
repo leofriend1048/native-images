@@ -2522,8 +2522,8 @@ export default function ChatPage({
                 variant="ghost"
                 size="sm"
                 className="h-8 gap-1.5 text-xs"
-                onClick={startTour}
-                title="Interactive tour — highlights each feature on the page"
+                onClick={() => setOnboardingOpen(true)}
+                title="Open guide"
               >
                 <HelpCircleIcon className="h-3.5 w-3.5" />
                 Guide
