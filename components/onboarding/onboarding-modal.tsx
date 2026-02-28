@@ -247,10 +247,12 @@ export function OnboardingModal({
   open,
   onOpenChange,
   onSelectConcept,
+  onStartTour,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelectConcept?: (concept: string) => void;
+  onStartTour?: () => void;
 }) {
   const [step, setStep] = useState(0);
   const isLast = step === STEPS.length - 1;
@@ -339,9 +341,22 @@ export function OnboardingModal({
                 </div>
               )}
 
-              {/* Last step: starter concepts */}
+              {/* Last step: interactive tour CTA + starter concepts */}
               {isLast && (
-                <div className="mt-4 space-y-2">
+                <div className="mt-4 space-y-3">
+                  {onStartTour && (
+                    <button
+                      onClick={() => { handleClose(); setTimeout(onStartTour, 150); }}
+                      className="w-full text-left text-sm px-3 py-3 rounded-lg border-2 border-foreground/20 bg-foreground/5 hover:bg-foreground/10 hover:border-foreground/40 transition-colors leading-snug flex items-center justify-between group"
+                    >
+                      <div>
+                        <p className="font-medium text-sm">Take the interactive tour</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Click through each feature on the actual page — highlights, tooltips, and all.</p>
+                      </div>
+                      <ArrowRightIcon className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors shrink-0 ml-3" />
+                    </button>
+                  )}
+                  <p className="text-xs text-muted-foreground font-medium">Or start with a concept:</p>
                   {STARTER_CONCEPTS.map((concept) => (
                     <button
                       key={concept}

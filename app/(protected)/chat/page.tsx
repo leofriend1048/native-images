@@ -148,6 +148,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { OnboardingModal, useOnboarding } from "@/components/onboarding/onboarding-modal";
+import { useProductTour } from "@/components/product-tour";
 import { CreativeBriefDialog } from "@/components/creative-brief-dialog";
 import { CommandPalette } from "@/components/command-palette";
 
@@ -1872,6 +1873,7 @@ function ChatSession({
             {/* Creative brief button */}
             {phase === "idle" && !isStreaming && (
               <Button
+                data-tour="brief-button"
                 variant="ghost"
                 size="sm"
                 className="h-7 gap-1.5 text-xs text-muted-foreground"
@@ -1903,7 +1905,7 @@ function ChatSession({
 
             <div className="flex items-center gap-2 flex-wrap">
                 {/* Batch count */}
-                <div className="flex items-center rounded-md border overflow-hidden">
+                <div data-tour="batch-count" className="flex items-center rounded-md border overflow-hidden">
                   {([1, 2, 4] as const).map((n) => (
                     <button
                       key={n}
@@ -1922,7 +1924,7 @@ function ChatSession({
                 {/* Model selector */}
                 <ModelSelector>
                   <ModelSelectorTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 font-normal">
+                    <Button data-tour="model-selector" variant="outline" size="sm" className="h-7 text-xs gap-1.5 font-normal">
                       <ModelSelectorLogo
                         provider={
                           settings.model.startsWith("google/") ? "google"
@@ -2316,6 +2318,7 @@ function ChatSession({
               <AttachmentPreviewsInInput />
             </PromptInputHeader>
             <PromptInputTextarea
+              data-tour="prompt-input"
               placeholder={
                 isInputDisabled
                   ? phase === "ideating"
@@ -2390,6 +2393,7 @@ export default function ChatPage({
   } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { open: onboardingOpen, setOpen: setOnboardingOpen, ready: onboardingReady } = useOnboarding();
+  const { startTour } = useProductTour();
   const [pendingConcept, setPendingConcept] = useState<string | null>(null);
   const [savedChats, setSavedChats] = useState<ChatSummary[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(initialChatId ?? null);
@@ -2508,7 +2512,7 @@ export default function ChatPage({
               </Link>
             )}
             <Link href="/gallery">
-              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
+              <Button data-tour="gallery-link" variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
                 <GalleryHorizontalIcon className="h-3.5 w-3.5" />
                 Gallery
               </Button>
@@ -2518,8 +2522,8 @@ export default function ChatPage({
                 variant="ghost"
                 size="sm"
                 className="h-8 gap-1.5 text-xs"
-                onClick={() => setOnboardingOpen(true)}
-                title="Open guide"
+                onClick={startTour}
+                title="Interactive tour — highlights each feature on the page"
               >
                 <HelpCircleIcon className="h-3.5 w-3.5" />
                 Guide
@@ -2586,6 +2590,7 @@ export default function ChatPage({
         onSelectConcept={(concept) => {
           setPendingConcept(concept);
         }}
+        onStartTour={startTour}
       />
     </div>
   );
