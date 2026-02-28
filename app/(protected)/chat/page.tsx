@@ -2590,7 +2590,6 @@ export default function ChatPage({
         onSelectConcept={(concept) => {
           setPendingConcept(concept);
         }}
-        onStartTour={startTour}
       />
     </div>
   );

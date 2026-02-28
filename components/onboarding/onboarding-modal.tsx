@@ -2,212 +2,214 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  SparklesIcon,
-  ImageIcon,
-  SlidersHorizontalIcon,
-  ClipboardListIcon,
-  GalleryHorizontalIcon,
   ArrowRightIcon,
-  CheckIcon,
+  SparklesIcon,
   LayersIcon,
-  RepeatIcon,
+  ClipboardListIcon,
+  CheckIcon,
 } from "lucide-react";
 
-const STORAGE_KEY = "native-ads-onboarding-v1";
+const STORAGE_KEY = "native-ads-onboarding-v2";
 
-// ─── Step data ────────────────────────────────────────────────────────────────
+// ─── Illustrations ────────────────────────────────────────────────────────────
 
-const STEPS = [
-  {
-    icon: ImageIcon,
-    accent: "bg-violet-500",
-    title: "Welcome to Native Ad AI",
-    subtitle: "Generate scroll-stopping, UGC-style ad images in minutes — powered by AI that thinks like a creative director.",
-    visual: <WelcomeVisual />,
-    tip: null,
-  },
-  {
-    icon: SparklesIcon,
-    accent: "bg-blue-500",
-    title: "Start with a visual concept",
-    subtitle: "Type a raw, specific moment — a body part, a before/after, a problem someone feels. The more visceral, the better.",
-    visual: <ConceptVisual />,
-    tip: "\"cracked heels\" is better than \"foot care ad\". Think about what would make someone stop scrolling.",
-  },
-  {
-    icon: RepeatIcon,
-    accent: "bg-emerald-500",
-    title: "The AI ideates before generating",
-    subtitle: "It asks 1–2 quick questions to nail down your product, audience, and angle. Then it writes a full native-ad prompt and shows variations.",
-    visual: <IdeationVisual />,
-    tip: "Pick any variation to generate, or add multiple to the queue to run them back-to-back.",
-  },
-  {
-    icon: SlidersHorizontalIcon,
-    accent: "bg-amber-500",
-    title: "Control your output",
-    subtitle: "The settings bar lets you tune everything before hitting generate.",
-    visual: <SettingsVisual />,
-    tip: null,
-  },
-  {
-    icon: ClipboardListIcon,
-    accent: "bg-pink-500",
-    title: "Brief mode for full campaigns",
-    subtitle: "Have a product, audience, and benefit ready? Use the Brief button to generate and auto-queue up to 8 concepts at once.",
-    visual: <BriefVisual />,
-    tip: "Great for new campaigns — fill it in once and let the queue run.",
-  },
-  {
-    icon: GalleryHorizontalIcon,
-    accent: "bg-sky-500",
-    title: "Your gallery & sharing",
-    subtitle: "Every image is saved automatically to your Gallery. Select images and create a shareable deck link for clients.",
-    visual: <GalleryVisual />,
-    tip: "Shareable decks need no login — just send the link.",
-  },
-  {
-    icon: CheckIcon,
-    accent: "bg-green-500",
-    title: "You're ready to go",
-    subtitle: "Here are a few concepts to try. Click one and we'll get started.",
-    visual: null,
-    tip: null,
-  },
-] as const;
-
-const STARTER_CONCEPTS = [
-  "Dry, cracked heels on a bathroom floor tile, close-up",
-  "Before/after bloated vs flat stomach, side-by-side comparison",
-  "Irritated red razor burn on jawline, close-up morning light",
-  "Puffy under-eye bags, close-up, unflattering morning selfie",
-  "Thinning hair visible from overhead, dramatic lighting",
-];
-
-// ─── Step visuals ─────────────────────────────────────────────────────────────
-
-function WelcomeVisual() {
-  return (
-    <div className="flex items-center justify-center gap-5 h-full">
-      <div className="w-24 h-32 rounded-xl bg-muted border flex items-center justify-center shadow-sm">
-        <div className="space-y-1.5 px-3 py-3 w-full">
-          <div className="h-2 bg-muted-foreground/20 rounded-full w-full" />
-          <div className="h-2 bg-muted-foreground/20 rounded-full w-4/5" />
-          <div className="h-12 bg-muted-foreground/10 rounded-lg mt-2 border" />
-          <div className="h-2 bg-muted-foreground/20 rounded-full w-3/5 mt-1" />
-        </div>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        {["Ideate", "Generate", "Review"].map((label, i) => (
-          <div key={label} className="flex items-center gap-2">
-            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${["bg-violet-500", "bg-blue-500", "bg-green-500"][i]}`}>{i + 1}</div>
-            <span className="text-sm font-medium">{label}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ConceptVisual() {
-  const examples = [
-    "cracked heels on tile floor",
-    "bloated stomach side-by-side",
-    "red razor burn on jawline",
+function WelcomeIllustration() {
+  const cards = [
+    { h: 112, tilt: "-rotate-6", gradient: "from-rose-400/50 to-orange-300/40", delay: "" },
+    { h: 140, tilt: "",           gradient: "from-violet-400/50 to-pink-300/40",  delay: "" },
+    { h: 100, tilt: "rotate-6",  gradient: "from-blue-400/50 to-cyan-300/40",    delay: "" },
   ];
   return (
-    <div className="flex flex-col gap-2 h-full justify-center">
-      <div className="rounded-xl border bg-background px-3 py-2.5 text-sm text-muted-foreground">
-        Describe your ad concept…
-      </div>
-      <div className="flex flex-wrap gap-1.5 mt-1">
-        {examples.map((ex) => (
-          <div key={ex} className="text-[11px] px-2.5 py-1 rounded-full border bg-muted font-medium">
-            {ex}
+    <div className="relative h-full flex items-center justify-center overflow-hidden">
+      {/* Dot grid */}
+      <div
+        className="absolute inset-0 opacity-[0.07]"
+        style={{
+          backgroundImage: "radial-gradient(circle, currentColor 1px, transparent 1px)",
+          backgroundSize: "22px 22px",
+        }}
+      />
+      {/* Floating image cards */}
+      <div className="flex items-end gap-3 relative z-10">
+        {cards.map((c, i) => (
+          <div
+            key={i}
+            className={`w-[88px] rounded-2xl bg-gradient-to-br ${c.gradient} border border-white/30 shadow-2xl ${c.tilt} flex flex-col justify-end p-2.5 backdrop-blur-sm`}
+            style={{ height: c.h }}
+          >
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-white/70" />
+              <div className="h-1.5 flex-1 rounded-full bg-white/40" />
+            </div>
           </div>
         ))}
       </div>
-      <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-        Think: what would make someone stop scrolling mid-feed?
-      </p>
+      {/* Step pills */}
+      <div className="absolute bottom-3 inset-x-0 flex items-center justify-center gap-1.5">
+        {["Ideate", "Generate", "Share"].map((label, i) => (
+          <div
+            key={label}
+            className="flex items-center gap-1.5 text-[10px] font-semibold bg-background/90 backdrop-blur-sm px-2.5 py-1 rounded-full border shadow-sm"
+          >
+            <span className="w-3.5 h-3.5 rounded-full bg-foreground text-background text-[8px] flex items-center justify-center font-bold shrink-0">
+              {i + 1}
+            </span>
+            {label}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
-function IdeationVisual() {
+function ConceptIllustration() {
   return (
-    <div className="flex flex-col gap-2 h-full justify-center">
-      {/* Clarification question */}
-      <div className="rounded-xl border bg-card p-3 space-y-2">
-        <p className="text-[11px] font-medium">What product is this for?</p>
-        <div className="flex flex-col gap-1">
-          {["Foot cream / balm", "Exfoliating scrub", "Other"].map((opt, i) => (
-            <div key={opt} className={`text-[10px] px-2.5 py-1.5 rounded-lg border ${i === 0 ? "border-primary bg-primary/5 font-medium" : "bg-background"}`}>{opt}</div>
+    <div className="h-full flex flex-col items-center justify-center gap-3 px-8">
+      {/* Prompt input mockup */}
+      <div className="w-full rounded-2xl border-2 border-foreground/10 bg-background/70 backdrop-blur-sm shadow-lg px-4 py-3">
+        <p className="text-sm text-foreground/90 font-mono leading-relaxed">
+          cracked heels on tile floor, close-up
+          <span className="inline-block w-0.5 h-4 bg-foreground/80 ml-0.5 animate-pulse align-middle" />
+        </p>
+      </div>
+      {/* Concept type pills */}
+      <div className="flex flex-wrap gap-1.5 justify-center">
+        {[
+          { label: "Close-up / Body",  cls: "bg-rose-500/10  text-rose-600  border-rose-300/40" },
+          { label: "Before / After",   cls: "bg-blue-500/10  text-blue-600  border-blue-300/40" },
+          { label: "Problem moment",   cls: "bg-amber-500/10 text-amber-600 border-amber-300/40" },
+          { label: "Lifestyle",        cls: "bg-green-500/10 text-green-600 border-green-300/40" },
+        ].map((p) => (
+          <div key={p.label} className={`text-[10px] font-medium px-2.5 py-1 rounded-full border ${p.cls}`}>
+            {p.label}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function IdeationIllustration() {
+  return (
+    <div className="h-full flex items-center justify-center px-8">
+      <div className="w-full max-w-sm space-y-2">
+        {/* User concept */}
+        <div className="flex justify-end">
+          <div className="bg-foreground/10 rounded-2xl rounded-br-sm px-3 py-2 text-[11px] max-w-[70%]">
+            cracked heels on tile floor…
+          </div>
+        </div>
+        {/* AI clarification */}
+        <div className="bg-background/70 backdrop-blur-sm rounded-2xl rounded-bl-sm border shadow-sm px-3 py-2.5">
+          <p className="text-[11px] font-semibold mb-1.5">What product is this for?</p>
+          <div className="space-y-1">
+            <div className="text-[10px] px-2.5 py-1.5 rounded-lg border-2 border-emerald-500/40 bg-emerald-500/5 font-medium text-emerald-700 flex items-center gap-1.5">
+              <CheckIcon className="h-2.5 w-2.5" /> Foot cream / balm
+            </div>
+            <div className="text-[10px] px-2.5 py-1.5 rounded-lg border bg-background text-muted-foreground">Exfoliating scrub</div>
+          </div>
+        </div>
+        {/* Enhanced prompt */}
+        <div className="bg-background/70 backdrop-blur-sm rounded-xl border shadow-sm px-3 py-2">
+          <div className="flex items-center gap-1.5 mb-1">
+            <SparklesIcon className="h-2.5 w-2.5 text-emerald-500" />
+            <span className="text-[9px] font-semibold uppercase tracking-wider text-emerald-600">Enhanced prompt</span>
+          </div>
+          <p className="text-[10px] font-mono text-foreground/70 leading-relaxed line-clamp-2">
+            Close-up of severely cracked dry heels on white bathroom tile, painful neglected before-state…
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsIllustration() {
+  return (
+    <div className="h-full flex flex-col items-center justify-center gap-3 px-8">
+      {/* Settings toolbar */}
+      <div className="w-full bg-background/70 backdrop-blur-sm rounded-xl border shadow-sm px-3 py-2 flex items-center gap-2 flex-wrap">
+        <div className="flex items-center rounded-md border overflow-hidden text-[11px]">
+          {["1x", "2x", "4x"].map((v, i) => (
+            <div key={v} className={`px-2.5 py-1 font-medium ${i === 1 ? "bg-foreground text-background" : "bg-background text-muted-foreground"}`}>{v}</div>
+          ))}
+        </div>
+        <div className="flex items-center gap-1.5 text-[11px] border rounded-md px-2.5 py-1 bg-background">
+          <div className="w-3 h-3 rounded-sm bg-blue-500 shrink-0" />
+          <span className="font-medium">Nano Banana 2</span>
+          <svg className="w-2.5 h-2.5 text-muted-foreground" viewBox="0 0 10 10"><path d="M2 3.5 5 6.5 8 3.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
+        </div>
+        <div className="flex items-center gap-1 text-[11px] border rounded-md px-2.5 py-1 bg-background">
+          <span>4:5</span>
+          <svg className="w-2.5 h-2.5 text-muted-foreground" viewBox="0 0 10 10"><path d="M2 3.5 5 6.5 8 3.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
+        </div>
+        <div className="flex items-center gap-1 text-[11px] text-muted-foreground px-2 py-1 rounded-md border border-dashed bg-background/40">
+          <ClipboardListIcon className="h-3 w-3" /> Brief
+        </div>
+      </div>
+      {/* Brief panel preview */}
+      <div className="w-full bg-background/60 backdrop-blur-sm rounded-xl border shadow-sm px-3 py-2.5">
+        <div className="flex items-center gap-1.5 mb-2">
+          <ClipboardListIcon className="h-3 w-3 text-muted-foreground" />
+          <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Creative Brief</span>
+          <div className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-foreground text-background font-semibold">
+            8 concepts
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-1">
+          {["Product", "Audience", "Key benefit", "Emotion"].map((f) => (
+            <div key={f} className="h-5 rounded border bg-background flex items-center px-2">
+              <span className="text-[9px] text-muted-foreground">{f}</span>
+            </div>
           ))}
         </div>
       </div>
-      {/* Enhanced prompt */}
-      <div className="rounded-xl border bg-card p-3">
-        <div className="flex items-center gap-1.5 mb-1.5">
-          <SparklesIcon className="h-3 w-3 text-muted-foreground" />
-          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Enhanced prompt</span>
-        </div>
-        <p className="text-[10px] font-mono leading-relaxed text-foreground/70">Close-up of severely cracked dry heels on white bathroom tile [painful, neglected, before-state]…</p>
-      </div>
     </div>
   );
 }
 
-function SettingsVisual() {
-  const settings = [
-    { label: "Batch", options: ["1x", "2x", "4x"], active: 1 },
-    { label: "Format", options: ["4:5", "1:1", "9:16"], active: 0 },
-    { label: "Model", options: ["NB2", "NB Pro", "Ideogram"], active: 0 },
+function GalleryIllustration() {
+  const tiles = [
+    { h: 76,  selected: false, gradient: "from-rose-300/40 to-orange-200/30" },
+    { h: 96,  selected: true,  gradient: "from-violet-300/40 to-pink-200/30" },
+    { h: 68,  selected: false, gradient: "from-blue-300/40 to-cyan-200/30" },
+    { h: 84,  selected: true,  gradient: "from-amber-300/40 to-yellow-200/30" },
+    { h: 92,  selected: false, gradient: "from-emerald-300/40 to-teal-200/30" },
+    { h: 72,  selected: false, gradient: "from-sky-300/40 to-indigo-200/30" },
   ];
   return (
-    <div className="flex flex-col gap-3 h-full justify-center">
-      {settings.map(({ label, options, active }) => (
-        <div key={label} className="space-y-1">
-          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">{label}</p>
-          <div className="flex items-center gap-1">
-            {options.map((opt, i) => (
-              <div key={opt} className={`text-[11px] px-2.5 py-1 rounded-md border font-medium transition-colors ${i === active ? "bg-foreground text-background border-foreground" : "bg-background text-muted-foreground"}`}>
-                {opt}
-              </div>
-            ))}
+    <div className="h-full flex flex-col items-center justify-center gap-3 px-8">
+      <div className="w-full max-w-sm">
+        <div className="grid grid-cols-3 gap-1.5 mb-2">
+          {tiles.map((t, i) => (
+            <div
+              key={i}
+              className={`relative rounded-xl bg-gradient-to-br ${t.gradient} border overflow-hidden`}
+              style={{ height: t.h }}
+            >
+              {t.selected && (
+                <>
+                  <div className="absolute inset-0 bg-foreground/10 rounded-xl" />
+                  <div className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-foreground flex items-center justify-center shadow">
+                    <CheckIcon className="h-3 w-3 text-background" />
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-muted-foreground">2 selected</span>
+          <div className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-lg bg-foreground text-background font-semibold shadow-sm">
+            <LayersIcon className="h-3 w-3" /> Create deck
           </div>
         </div>
-      ))}
-      <div className="text-[10px] text-muted-foreground leading-relaxed mt-1">
-        Select multiple formats to generate all crops automatically in one run.
-      </div>
-    </div>
-  );
-}
-
-function BriefVisual() {
-  const fields = ["Product", "Audience", "Key benefit", "Emotion", "Concepts: 4"];
-  return (
-    <div className="flex flex-col gap-2 h-full justify-center">
-      <div className="rounded-xl border bg-card p-3 space-y-2">
-        <div className="flex items-center gap-1.5 mb-1">
-          <ClipboardListIcon className="h-3 w-3 text-muted-foreground" />
-          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Creative Brief</span>
-        </div>
-        {fields.map((f) => (
-          <div key={f} className="h-6 rounded border bg-background px-2 flex items-center">
-            <span className="text-[10px] text-muted-foreground">{f}</span>
-          </div>
-        ))}
-        <div className="mt-1 h-7 rounded-lg bg-foreground flex items-center justify-center">
-          <span className="text-[10px] font-semibold text-background flex items-center gap-1">
-            <SparklesIcon className="h-2.5 w-2.5" /> Generate 4 concepts
+        <div className="mt-1.5 rounded-lg border bg-background/60 px-2.5 py-1.5 flex items-center gap-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0 animate-pulse" />
+          <span className="text-[10px] font-mono text-muted-foreground truncate">
+            nativeads.app/deck/79lThCX_…
           </span>
         </div>
       </div>
@@ -215,183 +217,257 @@ function BriefVisual() {
   );
 }
 
-function GalleryVisual() {
-  const colors = ["bg-muted-foreground/15", "bg-muted-foreground/10", "bg-muted-foreground/20", "bg-muted-foreground/12"];
-  return (
-    <div className="flex flex-col gap-3 h-full justify-center">
-      <div className="grid grid-cols-3 gap-1.5">
-        {[32, 40, 28, 36, 44, 30].map((h, i) => (
-          <div key={i} className={`${colors[i % colors.length]} rounded-lg border`} style={{ height: h }} />
-        ))}
-      </div>
-      <div className="flex items-center gap-2 justify-between">
-        <div className="flex items-center gap-1">
-          <div className="w-4 h-4 rounded border-2 border-primary bg-primary/20 flex items-center justify-center">
-            <CheckIcon className="h-2.5 w-2.5 text-primary" />
-          </div>
-          <span className="text-[10px] text-muted-foreground">3 selected</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="text-[10px] px-2 py-0.5 rounded bg-foreground text-background font-medium flex items-center gap-1">
-            <LayersIcon className="h-2.5 w-2.5" /> Create deck
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+// ─── Step config ──────────────────────────────────────────────────────────────
 
-// ─── Main component ───────────────────────────────────────────────────────────
+const STEPS = [
+  {
+    gradient: "from-violet-500/15 via-purple-500/10 to-transparent",
+    illustration: <WelcomeIllustration />,
+    badge: null,
+    title: "Generate scroll-stopping native ads",
+    body: "AI that thinks like a creative director. Describe a visual concept and get a hyperrealistic, iPhone-style image ready to run.",
+    tip: null,
+  },
+  {
+    gradient: "from-blue-500/15 via-indigo-500/10 to-transparent",
+    illustration: <ConceptIllustration />,
+    badge: "Step 1",
+    title: "Type a raw, visceral visual moment",
+    body: "Be specific about the body part, emotion, or problem. \"Cracked heels on tile\" beats \"foot care ad\" every time.",
+    tip: "Think: what would make someone stop scrolling mid-feed and feel something?",
+  },
+  {
+    gradient: "from-emerald-500/15 via-teal-500/10 to-transparent",
+    illustration: <IdeationIllustration />,
+    badge: "Step 2",
+    title: "AI asks 1–2 questions, then writes the prompt",
+    body: "It nails your product, audience, and angle — then generates multiple variations. Pick one, queue several, or skip straight to generate.",
+    tip: null,
+  },
+  {
+    gradient: "from-amber-500/15 via-orange-500/10 to-transparent",
+    illustration: <SettingsIllustration />,
+    badge: "Step 3",
+    title: "Control format, model, and volume",
+    body: "Set aspect ratio for any placement, batch 1–4 images per run, and swap models mid-session. Use Brief mode to queue up to 8 concepts from one form.",
+    tip: null,
+  },
+  {
+    gradient: "from-sky-500/15 via-blue-500/10 to-transparent",
+    illustration: <GalleryIllustration />,
+    badge: "Step 4",
+    title: "Every image saved. Shareable with one click.",
+    body: "Your Gallery stores everything automatically. Select images, create a deck, and send clients a share link — no login required on their end.",
+    tip: null,
+  },
+] as const;
+
+const STARTER_CONCEPTS: { label: string; category: string; color: string }[] = [
+  { label: "Dry, cracked heels on bathroom tile, close-up",         category: "Body / Pain",    color: "border-rose-200/60   hover:border-rose-400/60"   },
+  { label: "Before/after bloated vs. flat stomach, side by side",   category: "Before / After", color: "border-blue-200/60   hover:border-blue-400/60"   },
+  { label: "Irritated red razor burn on jawline, morning light",    category: "Close-up / Skin",color: "border-orange-200/60 hover:border-orange-400/60" },
+  { label: "Puffy under-eye bags, unflattering morning selfie",     category: "Portrait",       color: "border-violet-200/60 hover:border-violet-400/60" },
+];
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export function OnboardingModal({
   open,
   onOpenChange,
   onSelectConcept,
-  onStartTour,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelectConcept?: (concept: string) => void;
-  onStartTour?: () => void;
 }) {
   const [step, setStep] = useState(0);
-  const isLast = step === STEPS.length - 1;
-  const current = STEPS[step];
+  const totalContent = STEPS.length;
+  const isFinal = step === totalContent; // final "pick a concept" screen
 
   const handleNext = () => {
-    if (isLast) {
-      onOpenChange(false);
-    } else {
-      setStep((s) => s + 1);
-    }
+    if (isFinal) { onOpenChange(false); return; }
+    setStep((s) => s + 1);
   };
 
   const handleBack = () => setStep((s) => Math.max(0, s - 1));
+  const handleClose = () => onOpenChange(false);
 
-  const handleClose = () => {
-    onOpenChange(false);
-  };
-
-  const handleSelectConcept = (concept: string) => {
+  const handlePickConcept = (concept: string) => {
     onOpenChange(false);
     onSelectConcept?.(concept);
   };
 
-  // Reset to step 0 when re-opened
-  useEffect(() => {
-    if (open) setStep(0);
-  }, [open]);
+  useEffect(() => { if (open) setStep(0); }, [open]);
 
-  const IconComponent = current.icon;
+  // Keyboard ← → navigation
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") handleNext();
+      if (e.key === "ArrowLeft" && step > 0) handleBack();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  const current = !isFinal ? STEPS[step] : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-2xl p-0 overflow-hidden gap-0"
+        className="max-w-[520px] p-0 overflow-hidden gap-0"
         aria-describedby={undefined}
       >
-        <DialogTitle className="sr-only">{current.title}</DialogTitle>
+        <DialogTitle className="sr-only">
+          {current ? current.title : "You're ready to go"}
+        </DialogTitle>
 
-        <div className="flex flex-col sm:flex-row h-auto sm:h-[480px]">
-          {/* Left panel — illustration */}
-          <div className={`shrink-0 sm:w-56 p-6 flex flex-col justify-between ${current.accent} bg-opacity-10`}
-            style={{ background: `color-mix(in srgb, var(--background) 92%, currentColor)` }}
-          >
-            <div className="space-y-3">
-              <div className={`w-9 h-9 rounded-xl ${current.accent} flex items-center justify-center`}>
-                <IconComponent className="h-5 w-5 text-white" />
-              </div>
-              {current.visual ? (
-                <div className="h-44 sm:h-auto sm:flex-1">
-                  {current.visual}
-                </div>
-              ) : null}
+        {/* ── Content step ─────────────────────────────────────────────── */}
+        {!isFinal && current && (
+          <div className="flex flex-col" key={step}>
+            {/* Illustration */}
+            <div className={`h-[220px] shrink-0 bg-gradient-to-b ${current.gradient} relative`}>
+              {current.illustration}
             </div>
-            {/* Step dots */}
-            <div className="flex items-center gap-1.5 mt-4">
-              {STEPS.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setStep(i)}
-                  className={`rounded-full transition-all duration-200 ${
-                    i === step ? "w-4 h-1.5 bg-foreground" : "w-1.5 h-1.5 bg-foreground/20"
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
 
-          {/* Right panel — content */}
-          <div className="flex flex-col flex-1 min-h-0">
-            <div className="flex-1 overflow-y-auto p-6 sm:p-8">
-              <div className="mb-1">
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-                  {step + 1} / {STEPS.length}
+            {/* Content */}
+            <div className="px-7 pt-5 pb-4">
+              {current.badge && (
+                <span className="inline-block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">
+                  {current.badge} <span className="opacity-40">/ {totalContent}</span>
                 </span>
-              </div>
-              <h2 className="text-xl font-bold tracking-tight leading-snug">{current.title}</h2>
-              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{current.subtitle}</p>
-
+              )}
+              {!current.badge && (
+                <span className="inline-block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2 opacity-0 select-none">
+                  &nbsp;
+                </span>
+              )}
+              <h2 className="text-[18px] font-bold tracking-tight leading-snug">
+                {current.title}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                {current.body}
+              </p>
               {current.tip && (
-                <div className="mt-4 rounded-lg bg-muted border px-3 py-2.5">
-                  <p className="text-xs leading-relaxed">
-                    <span className="font-semibold">Tip: </span>
+                <div className="mt-3 rounded-lg bg-muted border px-3 py-2.5 flex gap-2">
+                  <SparklesIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                  <p className="text-[12px] leading-relaxed text-muted-foreground">
                     {current.tip}
                   </p>
                 </div>
               )}
-
-              {/* Last step: interactive tour CTA + starter concepts */}
-              {isLast && (
-                <div className="mt-4 space-y-3">
-                  {onStartTour && (
-                    <button
-                      onClick={() => { handleClose(); setTimeout(onStartTour, 150); }}
-                      className="w-full text-left text-sm px-3 py-3 rounded-lg border-2 border-foreground/20 bg-foreground/5 hover:bg-foreground/10 hover:border-foreground/40 transition-colors leading-snug flex items-center justify-between group"
-                    >
-                      <div>
-                        <p className="font-medium text-sm">Take the interactive tour</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">Click through each feature on the actual page — highlights, tooltips, and all.</p>
-                      </div>
-                      <ArrowRightIcon className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors shrink-0 ml-3" />
-                    </button>
-                  )}
-                  <p className="text-xs text-muted-foreground font-medium">Or start with a concept:</p>
-                  {STARTER_CONCEPTS.map((concept) => (
-                    <button
-                      key={concept}
-                      onClick={() => handleSelectConcept(concept)}
-                      className="w-full text-left text-sm px-3 py-2.5 rounded-lg border bg-background hover:bg-accent hover:border-accent transition-colors leading-snug flex items-center justify-between group"
-                    >
-                      <span>{concept}</span>
-                      <ArrowRightIcon className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2" />
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
 
-            {/* Navigation — pinned outside the scroll area */}
-            <div className="shrink-0 flex items-center justify-between px-6 sm:px-8 py-4 border-t bg-background">
+            {/* Navigation */}
+            <div className="shrink-0 flex items-center justify-between px-7 py-4 border-t bg-background">
               <div className="flex items-center gap-2">
                 {step > 0 && (
                   <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={handleBack}>
-                    Back
+                    ← Back
                   </Button>
                 )}
-                <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground" onClick={handleClose}>
-                  {isLast ? "Skip concepts" : "Skip tour"}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs text-muted-foreground"
+                  onClick={handleClose}
+                >
+                  Skip
                 </Button>
               </div>
-              {!isLast && (
-                <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={handleNext}>
-                  Next
-                  <ArrowRightIcon className="h-3.5 w-3.5" />
-                </Button>
-              )}
+
+              {/* Progress dots */}
+              <div className="flex items-center gap-1.5 absolute left-1/2 -translate-x-1/2">
+                {Array.from({ length: totalContent + 1 }).map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setStep(i)}
+                    className={`rounded-full transition-all duration-200 ${
+                      i === step
+                        ? "w-4 h-1.5 bg-foreground"
+                        : "w-1.5 h-1.5 bg-foreground/20 hover:bg-foreground/40"
+                    }`}
+                  />
+                ))}
+              </div>
+
+              <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={handleNext}>
+                {step === totalContent - 1 ? "Get started" : "Next"}
+                <ArrowRightIcon className="h-3.5 w-3.5" />
+              </Button>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* ── Final step: pick a concept ────────────────────────────────── */}
+        {isFinal && (
+          <div className="flex flex-col">
+            {/* Header */}
+            <div className="px-7 pt-7 pb-1">
+              <span className="inline-block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">
+                Ready to go
+              </span>
+              <h2 className="text-[18px] font-bold tracking-tight">Try one of these to start</h2>
+              <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                Click a concept and the AI will ideate it for you — or type your own below.
+              </p>
+            </div>
+
+            {/* Concept cards */}
+            <div className="px-7 py-4 grid grid-cols-2 gap-2">
+              {STARTER_CONCEPTS.map((c) => (
+                <button
+                  key={c.label}
+                  onClick={() => handlePickConcept(c.label)}
+                  className={`group text-left rounded-xl border-2 ${c.color} bg-background p-3 transition-all duration-150 hover:shadow-sm hover:-translate-y-px active:translate-y-0`}
+                >
+                  <span className="block text-[9px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                    {c.category}
+                  </span>
+                  <span className="block text-[12px] leading-snug text-foreground/85 group-hover:text-foreground transition-colors">
+                    {c.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Navigation */}
+            <div className="shrink-0 flex items-center justify-between px-7 py-4 border-t bg-background">
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={handleBack}>
+                  ← Back
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs text-muted-foreground"
+                  onClick={handleClose}
+                >
+                  Dismiss
+                </Button>
+              </div>
+
+              {/* Progress dots */}
+              <div className="flex items-center gap-1.5 absolute left-1/2 -translate-x-1/2">
+                {Array.from({ length: totalContent + 1 }).map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setStep(i)}
+                    className={`rounded-full transition-all duration-200 ${
+                      i === step
+                        ? "w-4 h-1.5 bg-foreground"
+                        : "w-1.5 h-1.5 bg-foreground/20 hover:bg-foreground/40"
+                    }`}
+                  />
+                ))}
+              </div>
+
+              <Button size="sm" className="h-8 text-xs" onClick={handleClose}>
+                Start typing ↵
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -405,17 +481,13 @@ export function useOnboarding() {
 
   useEffect(() => {
     const completed = localStorage.getItem(STORAGE_KEY);
-    if (!completed) {
-      setOpen(true);
-    }
+    if (!completed) setOpen(true);
     setReady(true);
   }, []);
 
   const handleOpenChange = (val: boolean) => {
     setOpen(val);
-    if (!val) {
-      localStorage.setItem(STORAGE_KEY, "1");
-    }
+    if (!val) localStorage.setItem(STORAGE_KEY, "1");
   };
 
   return { open, setOpen: handleOpenChange, ready };
