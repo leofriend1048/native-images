@@ -143,9 +143,14 @@ export async function POST(req: Request) {
   // blob: → data:, so filtering to data: URLs is both safe and correct.
   // Extract reference images from the most recent user message that has attachments.
   // Upload each data: URL to Supabase so Replicate can fetch them as stable HTTP URLs.
+  // After uploading, replace the base64 data: blobs in the messages with their
+  // Supabase HTTP URLs so that (a) convertToModelMessages doesn't forward huge
+  // base64 strings to Claude and (b) the in-memory footprint stays small.
   const referenceImages: string[] = [];
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i];
+  const cleanedMessages: UIMessage[] = messages.map((m) => ({ ...m, parts: [...(m.parts ?? [])] }));
+
+  for (let i = cleanedMessages.length - 1; i >= 0; i--) {
+    const msg = cleanedMessages[i];
     if (msg.role !== "user") continue;
     const fileParts = (msg.parts ?? []).filter(
       (p): p is { type: "file"; mediaType: string; url: string } =>
@@ -167,11 +172,27 @@ export async function POST(req: Request) {
         })
       );
       referenceImages.push(...uploaded);
+
+      // Swap data: blobs → Supabase HTTP URLs in the cleaned message copy
+      // so Claude receives lightweight image URLs instead of raw base64.
+      msg.parts = (msg.parts ?? []).map((p) => {
+        if (
+          p.type === "file" &&
+          typeof (p as Record<string, unknown>).url === "string" &&
+          (p as unknown as { url: string }).url.startsWith("data:")
+        ) {
+          const idx = fileParts.findIndex((fp) => fp.url === (p as unknown as { url: string }).url);
+          const supabaseUrl = idx >= 0 ? uploaded[idx] : (p as unknown as { url: string }).url;
+          return { ...p, url: supabaseUrl } as typeof p;
+        }
+        return p;
+      });
+
       break; // only use the most recent user message that has attachments
     }
   }
 
-  const modelMessages = await convertToModelMessages(messages, {
+  const modelMessages = await convertToModelMessages(cleanedMessages, {
     // Drop any tool call that has no result yet (e.g. approveRetry still
     // awaiting user input) instead of forwarding an incomplete call to Claude,
     // which would throw "Tool result is missing".
