@@ -75,6 +75,7 @@ export function useProductTour() {
       stagePadding: 6,
       stageRadius: 8,
       popoverClass: "native-ads-tour-popover",
+      overlayColor: "rgba(0,0,0,0.6)",
       progressText: "{{current}} of {{total}}",
       nextBtnText: "Next →",
       prevBtnText: "← Back",
