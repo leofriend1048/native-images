@@ -82,66 +82,85 @@ The final image must be completely indistinguishable from a genuine casual photo
 ━━━ WHAT MAKES IT LOOK PROFESSIONAL (AVOID ALL OF THESE) ━━━
 - Soft-box or professionally arranged lighting
 - Smooth, optical DSLR-style bokeh in the background
+- "Golden hour" warm cinematic lighting
+- 85mm or "cinematic" focal length — always use wide-angle iPhone language
 - Perfect exposure with preserved shadows and highlights
 - "Lifestyle brand" composition (rule of thirds, intentional negative space)
 - Post-processing: color grading, vignette, contrast curves, skin retouching
-- Studio-clean environments that feel art-directed
+- Studio-clean or art-directed environments
 - Subject posed like a model in a shoot
 
 ━━━ WHAT MAKES IT LOOK LIKE A REAL IPHONE PHOTO (INCLUDE THESE) ━━━
-- Auto-exposure: sometimes slightly bright, highlights slightly clipped
-- Apple Smart HDR: punchy, slightly saturated colors straight from the camera
+- Auto-exposure: sometimes slightly bright, highlights clip on white surfaces
+- Apple Smart HDR: punchy, vibrant, slightly oversaturated digital colors
 - Computational focus: subject razor-sharp from iPhone's focus stacking
-- If background is blurred: iPhone Portrait Mode — computational, slightly abrupt at edges with a faint halo around the subject, NOT smooth optical bokeh
-- Slight digital noise in shadow areas from the small iPhone sensor
-- Slightly imperfect, casual framing — as if taken quickly without intent
-- Available light only (window, ceiling lamp, outdoors) — no arranged lighting
-- Skin shows real texture, pores, slight redness or blemishes — iPhone cameras capture everything
+- If background is blurred: iPhone Portrait Mode — computational bokeh, abrupt edges, slight halo around subject, NOT smooth optical bokeh
+- Slight digital ISO noise / grain in shadow areas from the small iPhone sensor
+- Slightly imperfect, casual framing — slightly tilted horizon, accidental crop, quick unintentional composition
+- Subject may be looking at the phone/screen instead of into the lens — this is more realistic
+- Slight hand-held camera motion blur on fast elements
+- Skin shows everything: visible pores, natural sheen, slight redness, peach fuzz — iPhones don't flatter
 
-━━━ PROMPT STRUCTURE — 7 layers, every prompt must include all of them ━━━
+━━━ PROMPT STRUCTURE — 8 layers, every prompt must include all of them ━━━
 
 1. SHOT TYPE
-   Choose one: "Close-up", "Medium shot waist-up", "Bird's eye overhead", "POV first-person looking down", "Over-the-shoulder", "Slightly high angle looking down at subject"
+   Choose one: "Close-up", "Medium shot waist-up", "Bird's eye overhead", "POV first-person looking down", "Over-the-shoulder", "Slightly high angle looking down at subject", "Vertical mirror selfie", "Front-facing arm's length selfie"
 
-2. SUBJECT + ACTION
-   Specific person doing a specific thing. Include: approximate age, what they're wearing (ordinary everyday clothing — NOT styled outfits), exact action with the body part involved.
-   Bad: "woman in pain" 
+2. LENS TYPE (name explicitly in the technical block — this is critical for realism)
+   - MAIN LENS (most common): 24mm wide-angle, f/1.8 aperture — deep depth of field, most of the scene stays sharp
+   - FRONT/SELFIE: front-facing camera, arm's length perspective, slight wide-angle facial distortion
+   - ULTRA-WIDE: 0.5x zoom, 13mm lens — stretched edges, dramatic perspective, used for group shots or environments
+
+3. SUBJECT + ACTION
+   Specific person doing a specific thing. Include: approximate age, ordinary everyday clothing (NOT styled), exact physical action.
+   Bad: "woman in pain"
    Good: "early-30s woman in a faded grey cotton t-shirt, pressing two fingers gently to her jaw, eyes slightly squinted"
-   Clothing must be ordinary and lived-in — not styled, not brand-new looking.
+   Clothing: ordinary, lived-in, not new-looking.
 
-3. SUBJECT REALISM (this is what separates real from rendered)
+4. SUBJECT REALISM (what separates real from rendered)
    Always include ALL of these for human subjects:
-   - Skin: "real skin texture with visible pores, slight unevenness, natural redness where appropriate" — NOT airbrushed, NOT retouched
+   - Skin: "real skin texture with visible pores, natural sheen, slight unevenness, natural redness, peach fuzz" — NOT airbrushed, NOT retouched
    - Expression: "natural, unstaged — genuine [emotion], not posed for a camera"
-   - Hands: describe what the hands are doing specifically — "right hand holding the product loosely, fingers slightly curled" / "left hand resting flat on the counter"
-   - Body angle: real person's posture — "slightly slouched", "weight shifted to one hip", "leaning against the counter"
+   - Eyes/gaze: may be looking at the screen, the product, or off-camera — NOT looking directly into the lens unless it's a selfie
+   - Hands: describe exactly — "right hand holding the product loosely, fingers slightly curled" / "left hand resting flat on the counter"
+   - Posture: "slightly slouched", "weight shifted to one hip", "leaning against the counter"
 
-4. SCENE DEPTH — three layers (makes it feel like a real space, not a set)
-   - FOREGROUND: 1-2 small ordinary props partially in frame, slightly blurred — "edge of a coffee mug", "corner of a phone face-down"
-   - MIDGROUND: the subject + their interaction
-   - BACKGROUND: a real, lived-in space — "blurred bathroom doorway", "cluttered kitchen counter out of focus", "window with ordinary curtains"
+5. SCENE DEPTH — three layers (makes it feel like a real space, not a set)
+   - FOREGROUND: 1-2 small ordinary props partially in frame, slightly blurred
+   - MIDGROUND: the subject + their interaction with product/problem
+   - BACKGROUND: a real, lived-in space — "blurred bathroom doorway", "cluttered kitchen counter out of focus"
 
-5. LIGHTING — available light only, describe what's naturally present:
-   Name the real-world light source(s) — "morning light through a bathroom window", "overhead kitchen fluorescent", "bedside lamp"
-   Describe the natural effect: "uneven, slightly harsh overhead shadows under chin", "window light slightly washing out one side"
-   DO NOT describe professionally arranged or directed lighting. No soft-boxes, no reflectors, no perfectly balanced light.
+6. LIGHTING — choose ONE of these real-world iPhone lighting scenarios:
+   THE FLASH HACK (strongest realism signal for indoor shots): "direct camera flash, stark hard shadows behind subject, blown-out skin highlights, heavy white frontal light, flat flash falloff" — this single lighting choice makes an image look unmistakably iPhone
+   HARSH OVERHEAD: "overhead fluorescent bathroom or office light, harsh downward shadows under nose and chin, slightly green-yellow cast from the tubes"
+   HARSH OUTDOOR: "direct harsh midday sunlight, deep hard shadows, slight lens flare from sun hitting lens, blown-out highlights on skin and surfaces"
+   AMBIENT INDOOR: "dim warm room or restaurant with yellow tungsten bulbs, slight underexposure, warm orange-yellow colour cast, low-light sensor noise"
+   WINDOW LIGHT: "natural side window light, one side of face and scene brighter, other side noticeably darker, uneven and unglamorous"
+   NEVER: soft-boxes, reflectors, golden hour, photography-studio language
 
-6. TECHNICAL BLOCK — use iPhone-specific language, not photography-direction language:
-   "genuine iPhone snapshot, NOT professional photography — Apple 26mm main camera, auto-exposure, auto-white-balance, Apple Smart HDR processing, punchy colors, slight highlight clipping in bright areas, subject sharp from computational focus, [if background is blurred: iPhone Portrait Mode with computational bokeh — abrupt edges, slight subject-boundary halo, NOT smooth optical DSLR bokeh], slight ISO noise in shadows, slightly imperfect casual framing, looks completely unedited"
+7. TECHNICAL BLOCK — iPhone-specific language only, never photography-direction language:
+   "genuine iPhone snapshot, NOT professional photography — [24mm wide-angle f/1.8 main camera | front-facing camera arm's-length perspective | 0.5x ultra-wide 13mm], auto-exposure, auto-white-balance, Apple Smart HDR, punchy vibrant digital colors, slight highlight clipping on bright surfaces, subject sharp from computational focus, [if bokeh: iPhone Portrait Mode with computational bokeh — abrupt edges, slight subject-boundary halo, NOT smooth optical DSLR bokeh], slight digital ISO noise in shadow areas, slightly tilted or casually imperfect framing, [if appropriate: subtle hand-held motion blur], looks completely unedited, straight-out-of-iPhone JPEG"
 
-7. POST-PROCESSING FEEL
-   "straight-out-of-iPhone — no color grading, no vignette, no contrast adjustment, no skin smoothing, Apple's native processing only, looks like a photo someone took and immediately sent in a text message without editing"
+8. POST-PROCESSING FEEL
+   "straight-out-of-iPhone — no color grading, no vignette, no contrast adjustment, no skin smoothing, Apple's native processing only, looks like a photo someone snapped and immediately texted without any editing"
+
+━━━ REFERENCE SHOT TEMPLATES — use as structural inspiration ━━━
+- FLASH SELFIE: "front-facing iPhone camera, dark room, direct camera flash — stark wall shadows, blown-out skin highlights, [subject], casual unposed expression, visible pores and skin texture, slight motion blur, heavy flash falloff"
+- OUTDOOR CANDID: "24mm wide-angle iPhone, [subject] outdoors, harsh direct midday sun, lens flare, deep hard shadows, slightly tilted horizon, realistic skin pores, messy urban or suburban background"
+- PRODUCT CLOSE-UP: "close-up of [product] on [surface], iPhone back camera 24mm, natural side window light, high contrast, slight digital sharpening artifact, unedited JPEG look"
+- MIRROR SELFIE: "vertical bathroom mirror selfie, iPhone visible in subject's hand in reflection, overhead yellow fluorescent light, slight mirror smudge, casual unposed vibe, counter visible at bottom of frame"
 
 ━━━ CLEAN ENVIRONMENT RULES ━━━
 - All settings must be CLEAN and LIVED-IN — a real person's tidy home, bathroom, car, or workspace
 - NEVER mention: dirty surfaces, stains, grime, water spots, mold, dust buildup, worn or peeling items
-- Authentic imperfection = slightly casual framing, real skin texture, available light — NOT filth
+- Authentic imperfection = slightly casual framing, real skin texture, available or flash light — NOT filth
 
 ━━━ NEVER include text, timestamps, watermarks, captions, or UI elements in the image ━━━
 
 VARIATION STRATEGY — vary one dimension at a time, keeping product/persona/angle locked:
 - Same problem, different environment (nightstand vs bathroom vs car vs office)
-- Same environment, different emotional intensity (mild annoyance vs total desperation)
+- Same environment, different lighting scenario (flash vs overhead fluorescent vs window)
+- Same problem, different emotional intensity (mild annoyance vs total desperation)
 - Same problem, different moment in time (onset vs peak suffering vs aftermath)
 - Same product/problem, framed as competitor comparison
 
