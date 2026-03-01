@@ -1,13 +1,8 @@
 import { notFound } from "next/navigation";
 import { getDeckByToken, getGeneratedImagesByIds } from "@/lib/db";
 import type { GeneratedImage } from "@/lib/db";
-
-const MODEL_LABELS: Record<string, string> = {
-  "google/nano-banana-pro": "Nano Banana Pro",
-  "google/nano-banana-2": "Nano Banana 2",
-  "bytedance/seedream-4.5": "Seedream 4.5",
-  "ideogram-ai/ideogram-v3-turbo": "Ideogram v3",
-};
+import { DeckViewer, CopyLinkButton } from "./deck-viewer";
+import { headers } from "next/headers";
 
 export default async function DeckPage({
   params,
@@ -22,7 +17,17 @@ export default async function DeckPage({
   const images = await getGeneratedImagesByIds(imageIds);
   const ordered = imageIds
     .map((id) => images.find((img) => img.id === id))
-    .filter((img): img is GeneratedImage => !!img);
+    .filter((img): img is GeneratedImage => !!img)
+    .map((img) => ({
+      id: img.id,
+      user_id: img.user_id,
+      chat_id: img.chat_id,
+      url: img.url,
+      prompt: img.prompt,
+      model: img.model,
+      aspect_ratio: img.aspect_ratio,
+      created_at: img.created_at,
+    }));
 
   const createdDate = new Date(deck.created_at).toLocaleDateString("en-US", {
     year: "numeric",
@@ -30,11 +35,18 @@ export default async function DeckPage({
     day: "numeric",
   });
 
+  // Build the canonical URL from the request host
+  const hdrs = await headers();
+  const host = hdrs.get("host") ?? "nativeads.ai";
+  const proto = host.startsWith("localhost") ? "http" : "https";
+  const deckUrl = `${proto}://${host}/deck/${token}`;
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-background/95 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+          {/* Branding */}
           <div className="flex items-center gap-2.5">
             <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-foreground">
               <svg
@@ -53,85 +65,55 @@ export default async function DeckPage({
             </div>
             <span className="font-semibold text-sm tracking-tight">Native Ads</span>
           </div>
-          <span className="text-xs text-muted-foreground">Creative deck · {createdDate}</span>
+
+          {/* Meta + copy link */}
+          <div className="flex items-center gap-4">
+            <span className="hidden sm:block text-xs text-muted-foreground">
+              Creative deck · {createdDate}
+            </span>
+            <CopyLinkButton deckUrl={deckUrl} />
+          </div>
         </div>
       </header>
 
-      {/* Hero */}
-      <div className="max-w-6xl mx-auto px-4 pt-10 pb-6">
-        <h1 className="text-2xl font-bold tracking-tight">{deck.title}</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {ordered.length} image{ordered.length !== 1 ? "s" : ""} · Generated with Native Ad AI
+      {/* Hero section */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-10 pb-6">
+        <p className="text-[11px] text-muted-foreground uppercase tracking-widest font-medium mb-2">
+          Creative Deck
+        </p>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{deck.title}</h1>
+        <p className="text-sm text-muted-foreground mt-2">
+          {ordered.length} image{ordered.length !== 1 ? "s" : ""} · Click any image to expand
         </p>
       </div>
 
-      {/* Grid */}
-      <div className="max-w-6xl mx-auto px-4 pb-16">
-        <div className="columns-2 sm:columns-3 lg:columns-4 gap-4">
-          {ordered.map((image, i) => (
-            <DeckImageCard key={image.id} image={image} index={i} />
-          ))}
-        </div>
-
-        {ordered.length === 0 && (
-          <div className="text-center py-20 text-muted-foreground">
+      {/* Image grid */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-20">
+        {ordered.length === 0 ? (
+          <div className="text-center py-24 text-muted-foreground">
+            <svg className="h-10 w-10 mx-auto mb-3 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <path d="m21 15-5-5L5 21"/>
+            </svg>
             <p className="text-sm">This deck has no images.</p>
           </div>
+        ) : (
+          <DeckViewer images={ordered} />
         )}
       </div>
 
       {/* Footer */}
-      <footer className="border-t py-6">
-        <div className="max-w-6xl mx-auto px-4 flex items-center justify-between">
+      <footer className="border-t bg-muted/30">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">
-            Created with <strong className="text-foreground">Native Ad AI</strong>
+            Created with{" "}
+            <strong className="text-foreground font-semibold">Native Ad AI</strong>{" "}
+            — AI-powered native ad creative studio
           </p>
           <p className="text-xs text-muted-foreground">{createdDate}</p>
         </div>
       </footer>
-    </div>
-  );
-}
-
-function DeckImageCard({ image, index }: { image: GeneratedImage; index: number }) {
-  return (
-    <div className="break-inside-avoid mb-4">
-      <div className="group rounded-xl overflow-hidden border bg-muted hover:border-foreground/20 transition-colors">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={image.url}
-          alt={image.prompt}
-          className="w-full object-cover"
-          loading={index < 8 ? "eager" : "lazy"}
-        />
-        <div className="p-3 space-y-2">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[10px] font-mono bg-muted-foreground/10 px-1.5 py-0.5 rounded">
-              {image.aspect_ratio}
-            </span>
-            <span className="text-[10px] text-muted-foreground">
-              {MODEL_LABELS[image.model] ?? image.model}
-            </span>
-          </div>
-          <p className="text-[11px] text-muted-foreground leading-snug line-clamp-3">
-            {image.prompt}
-          </p>
-          <a
-            href={image.url}
-            download={`native-ad-${image.id}.jpg`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline"
-          >
-            <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            Download
-          </a>
-        </div>
-      </div>
     </div>
   );
 }
@@ -144,8 +126,9 @@ export async function generateMetadata({
   const { token } = await params;
   const deck = await getDeckByToken(token);
   if (!deck) return { title: "Deck not found" };
+  const count = JSON.parse(deck.image_ids || "[]").length;
   return {
     title: `${deck.title} — Native Ad Creative Deck`,
-    description: `${JSON.parse(deck.image_ids || "[]").length} AI-generated native ad images`,
+    description: `${count} AI-generated native ad image${count !== 1 ? "s" : ""}, crafted with Native Ad AI`,
   };
 }

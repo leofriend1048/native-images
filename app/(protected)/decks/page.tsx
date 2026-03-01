@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,7 +16,11 @@ import {
   GalleryHorizontalIcon,
   EyeIcon,
   EyeOffIcon,
-  ImageIcon,
+  PencilIcon,
+  CheckIcon,
+  XIcon,
+  PlusIcon,
+  LinkIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +37,7 @@ interface Deck {
   token: string;
   title: string;
   image_ids: string;
+  thumbnails: string[];
   active: number;
   created_at: string;
 }
@@ -49,6 +54,173 @@ function relativeTime(dateStr: string): string {
   if (days < 7) return `${days}d ago`;
   return new Date(utc).toLocaleDateString();
 }
+
+// ─── Deck card ────────────────────────────────────────────────────────────────
+
+function DeckCard({
+  deck,
+  onToggleActive,
+  onDelete,
+  onRename,
+  isToggling,
+}: {
+  deck: Deck;
+  onToggleActive: () => void;
+  onDelete: () => void;
+  onRename: (title: string) => Promise<void>;
+  isToggling: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(deck.title);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const imageCount = (() => {
+    try { return (JSON.parse(deck.image_ids) as string[]).length; } catch { return 0; }
+  })();
+  const isActive = deck.active === 1;
+
+  const startEdit = () => {
+    setDraftTitle(deck.title);
+    setEditing(true);
+    setTimeout(() => inputRef.current?.select(), 30);
+  };
+
+  const cancelEdit = () => { setEditing(false); setDraftTitle(deck.title); };
+
+  const saveEdit = async () => {
+    if (!draftTitle.trim() || draftTitle.trim() === deck.title) { cancelEdit(); return; }
+    setSaving(true);
+    try {
+      await onRename(draftTitle.trim());
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(`${window.location.origin}/deck/${deck.token}`);
+    toast.success("Link copied to clipboard");
+  };
+
+  return (
+    <div className={`group rounded-2xl border bg-card overflow-hidden transition-all duration-200 ${!isActive ? "opacity-60" : "hover:shadow-sm hover:border-border/80"}`}>
+      {/* Thumbnail strip */}
+      <div className="relative h-32 bg-muted overflow-hidden">
+        {deck.thumbnails.length === 0 ? (
+          <div className="w-full h-full flex items-center justify-center">
+            <LayersIcon className="h-8 w-8 text-muted-foreground/30" />
+          </div>
+        ) : deck.thumbnails.length === 1 ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={deck.thumbnails[0]} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <div className={`grid h-full gap-0.5 ${deck.thumbnails.length >= 3 ? "grid-cols-3" : "grid-cols-2"}`}>
+            {deck.thumbnails.slice(0, deck.thumbnails.length >= 3 ? 3 : 2).map((url, i) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={i} src={url} alt="" className="w-full h-full object-cover" />
+            ))}
+          </div>
+        )}
+
+        {/* Status badge */}
+        <div className="absolute top-2 right-2">
+          <Badge
+            variant={isActive ? "default" : "secondary"}
+            className="text-[10px] px-1.5 py-0 h-4 shadow-sm"
+          >
+            {isActive ? "Live" : "Off"}
+          </Badge>
+        </div>
+
+        {/* Image count */}
+        <div className="absolute bottom-2 right-2 text-[10px] font-medium bg-black/50 text-white px-1.5 py-0.5 rounded backdrop-blur-sm">
+          {imageCount} image{imageCount !== 1 ? "s" : ""}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="p-4">
+        {/* Title row */}
+        <div className="flex items-start gap-2 mb-1">
+          {editing ? (
+            <div className="flex items-center gap-1 flex-1 min-w-0">
+              <input
+                ref={inputRef}
+                value={draftTitle}
+                onChange={(e) => setDraftTitle(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") saveEdit(); if (e.key === "Escape") cancelEdit(); }}
+                className="flex-1 min-w-0 text-sm font-medium bg-muted rounded px-2 py-0.5 outline-none ring-1 ring-primary"
+                disabled={saving}
+              />
+              <button onClick={saveEdit} disabled={saving} className="shrink-0 text-primary hover:text-primary/80">
+                <CheckIcon className="h-3.5 w-3.5" />
+              </button>
+              <button onClick={cancelEdit} disabled={saving} className="shrink-0 text-muted-foreground hover:text-foreground">
+                <XIcon className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 flex-1 min-w-0 group/title">
+              <span className="text-sm font-semibold truncate">{deck.title}</span>
+              <button
+                onClick={startEdit}
+                className="shrink-0 opacity-0 group-hover/title:opacity-100 text-muted-foreground hover:text-foreground transition-opacity"
+              >
+                <PencilIcon className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Meta */}
+        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-3">
+          <span>{relativeTime(deck.created_at)}</span>
+          <span>·</span>
+          <span className="font-mono truncate">/deck/{deck.token.slice(0, 10)}…</span>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-1.5">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1.5 text-xs flex-1"
+            onClick={copyLink}
+          >
+            <LinkIcon className="h-3 w-3" />
+            Copy link
+          </Button>
+          <Link href={`/deck/${deck.token}`} target="_blank">
+            <Button size="sm" variant="outline" className="h-7 w-7 p-0">
+              <ExternalLinkIcon className="h-3 w-3" />
+            </Button>
+          </Link>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 w-7 p-0"
+            disabled={isToggling}
+            onClick={onToggleActive}
+            title={isActive ? "Deactivate link" : "Activate link"}
+          >
+            {isActive ? <EyeOffIcon className="h-3 w-3" /> : <EyeIcon className="h-3 w-3" />}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:border-destructive"
+            onClick={onDelete}
+          >
+            <TrashIcon className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DecksPage() {
   const [currentUser, setCurrentUser] = useState<{ name: string | null; email: string; isAdmin: boolean } | null>(null);
@@ -80,10 +252,8 @@ export default function DecksPage() {
         body: JSON.stringify({ active: currentActive === 1 ? false : true }),
       });
       if (!res.ok) throw new Error();
-      setDecks((prev) =>
-        prev.map((d) => d.token === token ? { ...d, active: currentActive === 1 ? 0 : 1 } : d)
-      );
-      toast.success(currentActive === 1 ? "Deck deactivated" : "Deck activated");
+      setDecks((prev) => prev.map((d) => d.token === token ? { ...d, active: currentActive === 1 ? 0 : 1 } : d));
+      toast.success(currentActive === 1 ? "Deck deactivated — link no longer works" : "Deck activated");
     } catch {
       toast.error("Failed to update deck");
     } finally {
@@ -107,10 +277,16 @@ export default function DecksPage() {
     }
   }, [deleteToken]);
 
-  const copyLink = (token: string) => {
-    navigator.clipboard.writeText(`${window.location.origin}/deck/${token}`);
-    toast.success("Link copied");
-  };
+  const handleRename = useCallback(async (token: string, title: string) => {
+    const res = await fetch(`/api/decks/${token}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    });
+    if (!res.ok) { toast.error("Failed to rename deck"); throw new Error(); }
+    setDecks((prev) => prev.map((d) => d.token === token ? { ...d, title } : d));
+    toast.success("Deck renamed");
+  }, []);
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
@@ -132,19 +308,16 @@ export default function DecksPage() {
             <div className="flex items-center gap-1 ml-2">
               <Link href="/chat">
                 <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
-                  <MessageSquareIcon className="h-3.5 w-3.5" />
-                  Chat
+                  <MessageSquareIcon className="h-3.5 w-3.5" />Chat
                 </Button>
               </Link>
               <Link href="/gallery">
                 <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
-                  <GalleryHorizontalIcon className="h-3.5 w-3.5" />
-                  Gallery
+                  <GalleryHorizontalIcon className="h-3.5 w-3.5" />Gallery
                 </Button>
               </Link>
               <Button variant="secondary" size="sm" className="h-8 gap-1.5 text-xs">
-                <LayersIcon className="h-3.5 w-3.5" />
-                Decks
+                <LayersIcon className="h-3.5 w-3.5" />Decks
               </Button>
             </div>
           </div>
@@ -152,15 +325,13 @@ export default function DecksPage() {
             {currentUser?.isAdmin && (
               <Link href="/admin">
                 <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
-                  <ShieldIcon className="h-3.5 w-3.5" />
-                  Admin
+                  <ShieldIcon className="h-3.5 w-3.5" />Admin
                 </Button>
               </Link>
             )}
             <Link href="/docs">
               <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
-                <BookOpenIcon className="h-3.5 w-3.5" />
-                Docs
+                <BookOpenIcon className="h-3.5 w-3.5" />Docs
               </Button>
             </Link>
             <Link href="/account">
@@ -176,146 +347,66 @@ export default function DecksPage() {
       </header>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 max-w-4xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto px-4 py-6 max-w-5xl mx-auto w-full">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-lg font-semibold tracking-tight">Your Decks</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">Shareable creative decks you&apos;ve created</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Shareable creative decks — send links to clients, no login required</p>
           </div>
           <Link href="/gallery">
             <Button size="sm" className="h-8 gap-1.5 text-xs">
-              <LayersIcon className="h-3.5 w-3.5" />
-              Create new deck
+              <PlusIcon className="h-3.5 w-3.5" />
+              New deck
             </Button>
           </Link>
         </div>
 
         {loading ? (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="rounded-xl border bg-card p-4 flex items-center gap-4">
-                <Skeleton className="shrink-0 w-10 h-10 rounded-lg" />
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Skeleton className="h-4 w-36 rounded" />
-                    <Skeleton className="h-4 w-12 rounded-full" />
+              <div key={i} className="rounded-2xl border bg-card overflow-hidden">
+                <Skeleton className="w-full h-32 rounded-none" />
+                <div className="p-4 space-y-3">
+                  <Skeleton className="h-4 w-3/4 rounded" />
+                  <Skeleton className="h-3 w-1/2 rounded" />
+                  <div className="flex gap-1.5 pt-1">
+                    <Skeleton className="h-7 flex-1 rounded-md" />
+                    <Skeleton className="h-7 w-7 rounded-md" />
+                    <Skeleton className="h-7 w-7 rounded-md" />
+                    <Skeleton className="h-7 w-7 rounded-md" />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Skeleton className="h-3 w-16 rounded" />
-                    <Skeleton className="h-3 w-14 rounded" />
-                  </div>
-                  <Skeleton className="h-5 w-40 rounded" />
-                </div>
-                <div className="shrink-0 flex items-center gap-1.5">
-                  <Skeleton className="h-8 w-20 rounded-md" />
-                  <Skeleton className="h-8 w-14 rounded-md" />
-                  <Skeleton className="h-8 w-24 rounded-md" />
-                  <Skeleton className="h-8 w-8 rounded-md" />
                 </div>
               </div>
             ))}
           </div>
         ) : decks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-60 gap-3 text-center">
-            <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center">
-              <LayersIcon className="h-6 w-6 text-muted-foreground/50" />
+            <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
+              <LayersIcon className="h-7 w-7 text-muted-foreground/40" />
             </div>
             <div>
-              <p className="text-sm font-medium">No decks yet</p>
-              <p className="text-xs text-muted-foreground mt-1">Select images in the Gallery and click "Create deck"</p>
+              <p className="text-sm font-semibold">No decks yet</p>
+              <p className="text-xs text-muted-foreground mt-1">Go to Gallery, select images, and click "Create deck"</p>
             </div>
             <Link href="/gallery">
-              <Button size="sm" className="gap-1.5 text-xs">Go to Gallery</Button>
+              <Button size="sm" className="gap-1.5 text-xs">
+                <GalleryHorizontalIcon className="h-3.5 w-3.5" />
+                Go to Gallery
+              </Button>
             </Link>
           </div>
         ) : (
-          <div className="space-y-3">
-            {decks.map((deck) => {
-              const imageCount = (() => {
-                try { return (JSON.parse(deck.image_ids) as string[]).length; }
-                catch { return 0; }
-              })();
-              const deckUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/deck/${deck.token}`;
-              const isActive = deck.active === 1;
-              const isToggling = togglingToken === deck.token;
-
-              return (
-                <div
-                  key={deck.id}
-                  className={`rounded-xl border bg-card p-4 flex items-center gap-4 transition-opacity ${!isActive ? "opacity-60" : ""}`}
-                >
-                  {/* Icon */}
-                  <div className="shrink-0 w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                    <ImageIcon className="h-4 w-4 text-muted-foreground/60" />
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium truncate">{deck.title}</span>
-                      <Badge
-                        variant={isActive ? "default" : "secondary"}
-                        className="text-[10px] px-1.5 py-0 h-4 shrink-0"
-                      >
-                        {isActive ? "Live" : "Deactivated"}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[11px] text-muted-foreground">
-                        {imageCount} image{imageCount !== 1 ? "s" : ""}
-                      </span>
-                      <span className="text-[11px] text-muted-foreground">·</span>
-                      <span className="text-[11px] text-muted-foreground">{relativeTime(deck.created_at)}</span>
-                    </div>
-                    <div className="mt-1.5 flex items-center gap-1.5 min-w-0">
-                      <span className="text-[10px] font-mono text-muted-foreground truncate bg-muted px-2 py-0.5 rounded">
-                        /deck/{deck.token}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="shrink-0 flex items-center gap-1.5">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 gap-1.5 text-xs"
-                      onClick={() => copyLink(deck.token)}
-                    >
-                      <CopyIcon className="h-3.5 w-3.5" />
-                      Copy link
-                    </Button>
-                    <Link href={`/deck/${deck.token}`} target="_blank">
-                      <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
-                        <ExternalLinkIcon className="h-3.5 w-3.5" />
-                        View
-                      </Button>
-                    </Link>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 gap-1.5 text-xs"
-                      disabled={isToggling}
-                      onClick={() => handleToggleActive(deck.token, deck.active)}
-                      title={isActive ? "Deactivate — link will stop working" : "Activate — link will work again"}
-                    >
-                      {isActive
-                        ? <><EyeOffIcon className="h-3.5 w-3.5" />Deactivate</>
-                        : <><EyeIcon className="h-3.5 w-3.5" />Activate</>
-                      }
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                      onClick={() => setDeleteToken(deck.token)}
-                    >
-                      <TrashIcon className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {decks.map((deck) => (
+              <DeckCard
+                key={deck.id}
+                deck={deck}
+                isToggling={togglingToken === deck.token}
+                onToggleActive={() => handleToggleActive(deck.token, deck.active)}
+                onDelete={() => setDeleteToken(deck.token)}
+                onRename={(title) => handleRename(deck.token, title)}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -324,21 +415,14 @@ export default function DecksPage() {
       <Dialog open={!!deleteToken} onOpenChange={(v) => { if (!v) setDeleteToken(null); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Delete deck?</DialogTitle>
+            <DialogTitle>Delete this deck?</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            The share link will stop working immediately. This cannot be undone.
+            The share link will stop working immediately and the deck cannot be recovered.
           </p>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setDeleteToken(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              disabled={deleting}
-              onClick={handleDelete}
-            >
+            <Button variant="outline" size="sm" onClick={() => setDeleteToken(null)}>Cancel</Button>
+            <Button variant="destructive" size="sm" disabled={deleting} onClick={handleDelete}>
               {deleting ? "Deleting…" : "Delete deck"}
             </Button>
           </DialogFooter>

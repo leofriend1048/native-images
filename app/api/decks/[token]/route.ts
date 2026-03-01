@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/auth";
-import { getDeckByToken, getGeneratedImagesByIds, deleteDeckById, setDeckActive } from "@/lib/db";
+import { getDeckByToken, getGeneratedImagesByIds, deleteDeckById, setDeckActive, renameDeck } from "@/lib/db";
 
 export async function GET(
   _req: Request,
@@ -57,7 +57,15 @@ export async function PATCH(
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 
-  const { active } = await req.json();
-  await setDeckActive(deck.id, active);
+  const body = await req.json();
+
+  if (body.title !== undefined) {
+    const title = String(body.title).trim();
+    if (!title) return Response.json({ error: "Title cannot be empty" }, { status: 400 });
+    await renameDeck(deck.id, title);
+  } else if (body.active !== undefined) {
+    await setDeckActive(deck.id, body.active);
+  }
+
   return Response.json({ ok: true });
 }

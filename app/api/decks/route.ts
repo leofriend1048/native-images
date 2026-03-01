@@ -5,8 +5,30 @@ import { nanoid } from "nanoid";
 export async function GET() {
   const session = await getSession();
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
   const decks = await getDecksByUser(session.userId);
-  return Response.json({ decks });
+
+  // Collect first 4 image IDs per deck for thumbnail strips
+  const allImageIds = decks.flatMap((d) => {
+    try { return (JSON.parse(d.image_ids) as string[]).slice(0, 4); }
+    catch { return []; }
+  });
+  const uniqueIds = [...new Set(allImageIds)];
+  const images = uniqueIds.length > 0 ? await getGeneratedImagesByIds(uniqueIds) : [];
+  const imageMap = new Map(images.map((img) => [img.id, img.url]));
+
+  const decksWithThumbs = decks.map((deck) => {
+    const ids: string[] = (() => {
+      try { return JSON.parse(deck.image_ids) as string[]; }
+      catch { return []; }
+    })();
+    return {
+      ...deck,
+      thumbnails: ids.slice(0, 4).map((id) => imageMap.get(id)).filter((u): u is string => !!u),
+    };
+  });
+
+  return Response.json({ decks: decksWithThumbs });
 }
 
 export async function POST(req: Request) {

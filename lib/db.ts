@@ -368,3 +368,10 @@ export async function setDeckActive(id: string, active: boolean): Promise<void> 
     args: [active ? 1 : 0, id],
   });
 }
+
+export async function renameDeck(id: string, title: string): Promise<void> {
+  await client.execute({
+    sql: `UPDATE creative_decks SET title = ? WHERE id = ?`,
+    args: [title, id],
+  });
+}
