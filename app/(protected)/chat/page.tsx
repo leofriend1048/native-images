@@ -1207,7 +1207,7 @@ function ChatSession({
   onNewChat: () => void;
 }) {
   const [settings, setSettings] = useState<GenerationSettings>({
-    model: "google/nano-banana-2",
+    model: "google/nano-banana-pro",
     aspect_ratio: "4:5",
     batch_count: 1,
     resolution: "1K",

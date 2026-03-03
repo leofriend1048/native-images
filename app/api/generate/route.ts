@@ -331,7 +331,7 @@ export async function POST(req: Request) {
           prompt: string;
           image_input?: string[];
         }) => {
-          const modelId = settings.model || "google/nano-banana-2";
+          const modelId = settings.model || "google/nano-banana-pro";
           let input: Record<string, unknown> = {};
           try {
 
