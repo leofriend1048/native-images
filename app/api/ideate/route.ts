@@ -101,23 +101,35 @@ The final image must be completely indistinguishable from a genuine casual photo
 - Slight hand-held camera motion blur on fast elements
 - Skin shows everything: visible pores, natural sheen, slight redness, peach fuzz — iPhones don't flatter
 
-━━━ PROMPT STRUCTURE — 8 layers, every prompt must include all of them ━━━
+━━━ PROMPT STRUCTURE — every prompt must include all layers. Every prompt MUST begin with "A photograph taken on an iPhone" or "A photograph of..." to explicitly name the medium ━━━
 
-1. SHOT TYPE
+1. STYLE OPENING
+   Start with "A photograph taken on an iPhone [shot type] of..." or "A photograph of [subject]..." — naming the medium first improves model compliance.
+
+2. SHOT TYPE
    Choose one: "Close-up", "Medium shot waist-up", "Bird's eye overhead", "POV first-person looking down", "Over-the-shoulder", "Slightly high angle looking down at subject", "Vertical mirror selfie", "Front-facing arm's length selfie"
 
-2. LENS TYPE (name explicitly in the technical block — this is critical for realism)
+3. LENS TYPE (name explicitly in the technical block — critical for realism)
    - MAIN LENS (most common): 24mm wide-angle, f/1.8 aperture — deep depth of field, most of the scene stays sharp
    - FRONT/SELFIE: front-facing camera, arm's length perspective, slight wide-angle facial distortion
    - ULTRA-WIDE: 0.5x zoom, 13mm lens — stretched edges, dramatic perspective, used for group shots or environments
 
-3. SUBJECT + ACTION
-   Specific person doing a specific thing. Include: approximate age, ordinary everyday clothing (NOT styled), exact physical action.
-   Bad: "woman in pain"
-   Good: "early-30s woman in a faded grey cotton t-shirt, pressing two fingers gently to her jaw, eyes slightly squinted"
-   Clothing: ordinary, lived-in, not new-looking.
+4. SUBJECT (who — state clearly before action)
+   Approximate age, everyday clothing (NOT styled), basic physical presence.
+   Examples: "early-40s woman in a faded grey cotton t-shirt", "late-20s man in an old navy hoodie", "early-50s woman in a worn cardigan"
+   When reference images are provided, assign a simple alias ("the woman", "the person") and refer to them consistently.
 
-4. SUBJECT REALISM (what separates real from rendered)
+5. SETTING (concrete real-world location)
+   Use specific, recognizable environments — not generic labels.
+   Bad: "in a car", "in a bathroom", "in an office"
+   Good: "parked in a suburban driveway, late-model sedan interior", "small bathroom with IKEA-style white subway tile and builder-grade vanity", "cluttered home office with dual monitors and takeout coffee cup on desk"
+
+6. ACTION (what the subject is doing)
+   Specific physical action with body parts involved.
+   Bad: "woman in pain"
+   Good: "pressing two fingers to her jaw, eyes slightly squinted", "holding a razor up to the light, inspecting the blade"
+
+7. SUBJECT REALISM (what separates real from rendered)
    Always include ALL of these for human subjects:
    - Skin: "real skin texture with visible pores, natural sheen, slight unevenness, natural redness, peach fuzz" — NOT airbrushed, NOT retouched
    - Expression: "natural, unstaged — genuine [emotion], not posed for a camera"
@@ -125,12 +137,12 @@ The final image must be completely indistinguishable from a genuine casual photo
    - Hands: describe exactly — "right hand holding the product loosely, fingers slightly curled" / "left hand resting flat on the counter"
    - Posture: "slightly slouched", "weight shifted to one hip", "leaning against the counter"
 
-5. SCENE DEPTH — three layers (makes it feel like a real space, not a set)
+8. SCENE DEPTH — three layers (makes it feel like a real space, not a set)
    - FOREGROUND: 1-2 small ordinary props partially in frame, slightly blurred
    - MIDGROUND: the subject + their interaction with product/problem
    - BACKGROUND: a real, lived-in space — "blurred bathroom doorway", "cluttered kitchen counter out of focus"
 
-6. LIGHTING — choose ONE of these real-world iPhone lighting scenarios:
+9. LIGHTING — choose ONE of these real-world iPhone lighting scenarios:
    THE FLASH HACK (strongest realism signal for indoor shots): "direct camera flash, stark hard shadows behind subject, blown-out skin highlights, heavy white frontal light, flat flash falloff" — this single lighting choice makes an image look unmistakably iPhone
    HARSH OVERHEAD: "overhead fluorescent bathroom or office light, harsh downward shadows under nose and chin, slightly green-yellow cast from the tubes"
    HARSH OUTDOOR: "direct harsh midday sunlight, deep hard shadows, slight lens flare from sun hitting lens, blown-out highlights on skin and surfaces"
@@ -138,17 +150,17 @@ The final image must be completely indistinguishable from a genuine casual photo
    WINDOW LIGHT: "natural side window light, one side of face and scene brighter, other side noticeably darker, uneven and unglamorous"
    NEVER: soft-boxes, reflectors, golden hour, photography-studio language
 
-7. TECHNICAL BLOCK — iPhone-specific language only, never photography-direction language:
+10. TECHNICAL BLOCK — iPhone-specific language only, never photography-direction language:
    "genuine iPhone snapshot, NOT professional photography — [24mm wide-angle f/1.8 main camera | front-facing camera arm's-length perspective | 0.5x ultra-wide 13mm], auto-exposure, auto-white-balance, Apple Smart HDR, punchy vibrant digital colors, slight highlight clipping on bright surfaces, subject sharp from computational focus, [if bokeh: iPhone Portrait Mode with computational bokeh — abrupt edges, slight subject-boundary halo, NOT smooth optical DSLR bokeh], slight digital ISO noise in shadow areas, slightly tilted or casually imperfect framing, [if appropriate: subtle hand-held motion blur], looks completely unedited, straight-out-of-iPhone JPEG"
 
-8. POST-PROCESSING FEEL
+11. POST-PROCESSING FEEL
    "straight-out-of-iPhone — no color grading, no vignette, no contrast adjustment, no skin smoothing, Apple's native processing only, looks like a photo someone snapped and immediately texted without any editing"
 
-━━━ REFERENCE SHOT TEMPLATES — use as structural inspiration ━━━
-- FLASH SELFIE: "front-facing iPhone camera, dark room, direct camera flash — stark wall shadows, blown-out skin highlights, [subject], casual unposed expression, visible pores and skin texture, slight motion blur, heavy flash falloff"
-- OUTDOOR CANDID: "24mm wide-angle iPhone, [subject] outdoors, harsh direct midday sun, lens flare, deep hard shadows, slightly tilted horizon, realistic skin pores, messy urban or suburban background"
-- PRODUCT CLOSE-UP: "close-up of [product] on [surface], iPhone back camera 24mm, natural side window light, high contrast, slight digital sharpening artifact, unedited JPEG look"
-- MIRROR SELFIE: "vertical bathroom mirror selfie, iPhone visible in subject's hand in reflection, overhead yellow fluorescent light, slight mirror smudge, casual unposed vibe, counter visible at bottom of frame"
+━━━ REFERENCE SHOT TEMPLATES — use as structural inspiration (each begins with "A photograph") ━━━
+- FLASH SELFIE: "A photograph taken on an iPhone with the front-facing camera — grainy candid selfie in a dark bedroom or bathroom, direct camera flash causing stark wall shadows and blown-out skin highlights, [subject], casual unposed expression, visible skin texture and pores, slight motion blur, dark background with harsh flash falloff"
+- OUTDOOR CANDID: "A photograph of [subject] taken on iPhone 24mm wide-angle — suburban street or parking lot, harsh direct midday sun, lens flare, deep hard shadows, slightly tilted horizon, realistic skin pores, messy real-world background with cars or houses"
+- PRODUCT CLOSE-UP: "A photograph of [product] on [concrete surface — e.g. wooden kitchen table, marble bathroom counter] shot on iPhone back camera, natural side window light, high contrast, slight digital sharpening, unedited JPEG look"
+- MIRROR SELFIE: "A photograph taken on iPhone — vertical bathroom mirror selfie in a small bathroom with builder-grade vanity, iPhone visible in subject's hand in reflection, overhead yellow fluorescent, slight mirror smudge, casual unposed vibe, toiletries and towel rack visible in reflection"
 
 ━━━ CLEAN ENVIRONMENT RULES ━━━
 - All settings must be CLEAN and LIVED-IN — a real person's tidy home, bathroom, car, or workspace
