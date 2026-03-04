@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { getAllUsers, deleteUser, getUserById } from "@/lib/db";
+import { getUsersWithStats, deleteUser, getUserById } from "@/lib/db";
 
 function isAdmin(session: { email: string; isAdmin: boolean }) {
   const adminEmail = process.env.ADMIN_EMAIL;
@@ -13,7 +13,7 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const users = await getAllUsers();
+  const users = await getUsersWithStats();
   return NextResponse.json({ users });
 }
 

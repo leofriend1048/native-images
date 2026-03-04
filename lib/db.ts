@@ -1,4 +1,5 @@
 import { createClient } from "@libsql/client";
+import { nanoid } from "nanoid";
 
 const client = createClient({
   url: process.env.TURSO_DATABASE_URL!,
@@ -60,6 +61,12 @@ export async function initSchema() {
       title TEXT NOT NULL,
       image_ids TEXT NOT NULL DEFAULT '[]',
       active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS user_logins (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
   `);
@@ -129,6 +136,104 @@ export async function getAllUsers(): Promise<Omit<User, "password_hash">[]> {
     "SELECT id, email, name, is_admin, created_at FROM users ORDER BY created_at DESC"
   );
   return result.rows as unknown as Omit<User, "password_hash">[];
+}
+
+export async function logUserLogin(userId: string): Promise<void> {
+  await client.execute({
+    sql: "INSERT INTO user_logins (id, user_id) VALUES (?, ?)",
+    args: [nanoid(), userId],
+  });
+}
+
+export interface UserWithStats extends Omit<User, "password_hash"> {
+  login_count: number;
+  last_login: string | null;
+  last_active: string | null;
+  image_count: number;
+  chat_count: number;
+  deck_count: number;
+}
+
+export async function getUsersWithStats(): Promise<UserWithStats[]> {
+  const users = await getAllUsers();
+  const userIds = users.map((u) => u.id);
+
+  if (userIds.length === 0) return [];
+
+  const placeholders = userIds.map(() => "?").join(",");
+  const args = [...userIds];
+
+  const [loginRows, imageRows, chatRows, deckRows] = await Promise.all([
+    client.execute({
+      sql: `SELECT user_id, COUNT(*) as cnt, MAX(created_at) as last FROM user_logins WHERE user_id IN (${placeholders}) GROUP BY user_id`,
+      args,
+    }),
+    client.execute({
+      sql: `SELECT user_id, COUNT(*) as cnt, MAX(created_at) as last FROM generated_images WHERE user_id IN (${placeholders}) GROUP BY user_id`,
+      args,
+    }),
+    client.execute({
+      sql: `SELECT user_id, COUNT(*) as cnt, MAX(updated_at) as last FROM chats WHERE user_id IN (${placeholders}) GROUP BY user_id`,
+      args,
+    }),
+    client.execute({
+      sql: `SELECT user_id, COUNT(*) as cnt, MAX(created_at) as last FROM creative_decks WHERE user_id IN (${placeholders}) GROUP BY user_id`,
+      args,
+    }),
+  ]);
+
+  const byUser = new Map<
+    string,
+    { login_count: number; last_login: string | null; image_count: number; image_last: string | null; chat_count: number; chat_last: string | null; deck_count: number; deck_last: string | null }
+  >();
+  for (const u of users) {
+    byUser.set(u.id, { login_count: 0, last_login: null, image_count: 0, image_last: null, chat_count: 0, chat_last: null, deck_count: 0, deck_last: null });
+  }
+  for (const row of loginRows.rows as unknown as Array<{ user_id: string; cnt: number; last: string | null }>) {
+    const entry = byUser.get(row.user_id);
+    if (entry) {
+      entry.login_count = Number(row.cnt);
+      entry.last_login = row.last;
+    }
+  }
+  for (const row of imageRows.rows as unknown as Array<{ user_id: string; cnt: number; last: string | null }>) {
+    const entry = byUser.get(row.user_id);
+    if (entry) {
+      entry.image_count = Number(row.cnt);
+      entry.image_last = row.last;
+    }
+  }
+  for (const row of chatRows.rows as unknown as Array<{ user_id: string; cnt: number; last: string | null }>) {
+    const entry = byUser.get(row.user_id);
+    if (entry) {
+      entry.chat_count = Number(row.cnt);
+      entry.chat_last = row.last;
+    }
+  }
+  for (const row of deckRows.rows as unknown as Array<{ user_id: string; cnt: number; last: string | null }>) {
+    const entry = byUser.get(row.user_id);
+    if (entry) {
+      entry.deck_count = Number(row.cnt);
+      entry.deck_last = row.last;
+    }
+  }
+
+  return users.map((u) => {
+    const s = byUser.get(u.id)!;
+    const lastActive = [s.last_login, s.image_last, s.chat_last, s.deck_last]
+      .filter(Boolean)
+      .sort()
+      .pop() as string | null;
+    return {
+      ...u,
+      login_count: s.login_count,
+      last_login: s.last_login,
+      last_active: lastActive,
+      image_count: s.image_count,
+      chat_count: s.chat_count,
+      deck_count: s.deck_count,
+    };
+  });
 }
 
 export async function deleteUser(id: string): Promise<void> {

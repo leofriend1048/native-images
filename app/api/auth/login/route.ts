@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { getUserByEmail } from "@/lib/db";
+import { getUserByEmail, logUserLogin } from "@/lib/db";
 import { signToken, setSessionCookie } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
@@ -31,6 +31,8 @@ export async function POST(req: NextRequest) {
     });
 
     await setSessionCookie(token);
+
+    await logUserLogin(user.id);
 
     return NextResponse.json({
       user: { id: user.id, email: user.email, name: user.name, isAdmin },
