@@ -14,10 +14,17 @@ import {
   FilterIcon,
   MessageSquareIcon,
   LayersIcon,
+  ScalingIcon,
+  LoaderIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
@@ -45,6 +52,20 @@ const MODEL_LABELS: Record<string, string> = {
   "ideogram-ai/ideogram-v3-turbo": "Ideogram v3",
 };
 
+// Resize always uses Nano Banana Pro — these are its supported aspect ratios
+const RESIZE_RATIOS = [
+  { value: "1:1", label: "1:1 (square)" },
+  { value: "2:3", label: "2:3" },
+  { value: "3:2", label: "3:2" },
+  { value: "3:4", label: "3:4" },
+  { value: "4:3", label: "4:3" },
+  { value: "4:5", label: "4:5 (native)" },
+  { value: "5:4", label: "5:4" },
+  { value: "9:16", label: "9:16 (story)" },
+  { value: "16:9", label: "16:9 (wide)" },
+  { value: "21:9", label: "21:9 (ultra-wide)" },
+];
+
 function relativeTime(dateStr: string): string {
   const utc = dateStr.includes("T") ? dateStr : dateStr.replace(" ", "T") + "Z";
   const ms = Date.now() - new Date(utc).getTime();
@@ -62,16 +83,22 @@ function GalleryCard({
   image,
   selected,
   onToggleSelect,
+  onResize,
+  resizing,
   slug,
 }: {
   image: GeneratedImage;
   selected: boolean;
   onToggleSelect: () => void;
+  onResize: (imageId: string, aspectRatio: string) => void;
+  resizing: string | null;
   slug: string;
 }) {
   const [promptOpen, setPromptOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
+  const isResizing = resizing === image.id;
+  const availableRatios = RESIZE_RATIOS.filter((r) => r.value !== image.aspect_ratio);
 
   const handleDownload = async () => {
     try {
@@ -163,6 +190,26 @@ function GalleryCard({
             <Button variant="ghost" size="sm" className="h-6 px-1.5 text-[10px] gap-1" onClick={() => setPromptOpen((v) => !v)}>
               Prompt
             </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-6 px-1.5 text-[10px] gap-1" disabled={isResizing}>
+                  {isResizing ? <LoaderIcon className="h-2.5 w-2.5 animate-spin" /> : <ScalingIcon className="h-2.5 w-2.5" />}
+                  Resize
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-36 p-1.5" align="start">
+                <p className="text-[10px] font-medium text-muted-foreground px-1.5 pb-1">Generate in</p>
+                {availableRatios.map((r) => (
+                  <button
+                    key={r.value}
+                    onClick={() => onResize(image.id, r.value)}
+                    className="w-full text-left px-1.5 py-1 rounded text-xs hover:bg-muted transition-colors"
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
             {image.chat_id && (
               <Link href={`/${slug}/chat/${image.chat_id}`}>
                 <Button variant="ghost" size="sm" className="h-6 px-1.5 text-[10px] gap-1">
@@ -212,7 +259,7 @@ export default function GalleryClient({ initialImages }: { initialImages: Genera
   const router = useRouter();
   const pathname = usePathname();
   const slug = pathname.split("/")[1] || "";
-  const [images] = useState<GeneratedImage[]>(initialImages);
+  const [images, setImages] = useState<GeneratedImage[]>(initialImages);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filterRatio, setFilterRatio] = useState<string | null>(null);
   const [filterModel, setFilterModel] = useState<string | null>(null);
@@ -221,6 +268,29 @@ export default function GalleryClient({ initialImages }: { initialImages: Genera
   const [deckCreating, setDeckCreating] = useState(false);
   const [createdDeckUrl, setCreatedDeckUrl] = useState<string | null>(null);
   const [bulkDownloading, setBulkDownloading] = useState(false);
+  const [resizingId, setResizingId] = useState<string | null>(null);
+
+  const handleResize = useCallback(async (imageId: string, aspectRatio: string) => {
+    setResizingId(imageId);
+    try {
+      const res = await fetch("/api/images/resize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageId, aspectRatio }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Resize failed");
+      }
+      const { image } = await res.json();
+      setImages((prev) => [image, ...prev]);
+      toast.success(`Generated ${aspectRatio} variation`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Resize failed");
+    } finally {
+      setResizingId(null);
+    }
+  }, []);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -362,6 +432,8 @@ export default function GalleryClient({ initialImages }: { initialImages: Genera
                   image={image}
                   selected={selectedIds.has(image.id)}
                   onToggleSelect={() => toggleSelect(image.id)}
+                  onResize={handleResize}
+                  resizing={resizingId}
                   slug={slug}
                 />
               </div>

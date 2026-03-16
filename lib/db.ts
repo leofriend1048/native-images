@@ -1,6 +1,6 @@
 import { createClient } from "@libsql/client";
 import { nanoid } from "nanoid";
-import { encrypt, decrypt } from "./crypto";
+import { encrypt, decrypt, encryptSelfContained } from "./crypto";
 
 const client = createClient({
   url: process.env.TURSO_DATABASE_URL!,
@@ -567,16 +567,16 @@ export async function updateWorkspaceApiKeys(
   anthropicApiKey: string,
   replicateApiToken: string
 ): Promise<void> {
-  const anthropicEnc = anthropicApiKey ? encrypt(anthropicApiKey) : null;
-  const replicateEnc = replicateApiToken ? encrypt(replicateApiToken) : null;
-  // Use a single IV for both keys (they're always updated together)
-  const iv = anthropicEnc?.iv || replicateEnc?.iv || null;
+  // Each key is encrypted with its own IV embedded in the ciphertext (self-contained).
+  // The encryption_iv column is kept for legacy compat but not needed for new writes.
+  const anthropicEnc = anthropicApiKey ? encryptSelfContained(anthropicApiKey) : null;
+  const replicateEnc = replicateApiToken ? encryptSelfContained(replicateApiToken) : null;
   await client.execute({
     sql: `UPDATE workspaces SET anthropic_api_key_enc = ?, replicate_api_token_enc = ?, encryption_iv = ? WHERE id = ?`,
     args: [
-      anthropicEnc?.ciphertext || null,
-      replicateEnc?.ciphertext || null,
-      iv,
+      anthropicEnc || null,
+      replicateEnc || null,
+      "self-contained",
       workspaceId,
     ],
   });
@@ -592,11 +592,11 @@ export async function getWorkspaceApiKeys(workspaceId: string): Promise<{
   let anthropicApiKey = "";
   let replicateApiToken = "";
 
-  if (ws.anthropic_api_key_enc && ws.encryption_iv) {
-    try { anthropicApiKey = decrypt(ws.anthropic_api_key_enc, ws.encryption_iv); } catch {}
+  if (ws.anthropic_api_key_enc) {
+    try { anthropicApiKey = decrypt(ws.anthropic_api_key_enc, ws.encryption_iv ?? ""); } catch {}
   }
-  if (ws.replicate_api_token_enc && ws.encryption_iv) {
-    try { replicateApiToken = decrypt(ws.replicate_api_token_enc, ws.encryption_iv); } catch {}
+  if (ws.replicate_api_token_enc) {
+    try { replicateApiToken = decrypt(ws.replicate_api_token_enc, ws.encryption_iv ?? ""); } catch {}
   }
 
   return { anthropicApiKey, replicateApiToken };

@@ -129,11 +129,7 @@ import {
   ClipboardListIcon,
   HelpCircleIcon,
 } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+// Popover removed — ratio picker is now single-select
 import {
   Dialog,
   DialogContent,
@@ -1095,8 +1091,7 @@ function ChatSession({
   const [clarification, setClarification] = useState<ClarificationResult | null>(null);
   const [queue, setQueue] = useState<{ prompt: string; ratioOverride?: string }[]>([]);
 
-  // Multi-crop: which ratios are selected
-  const [selectedRatios, setSelectedRatios] = useState<string[]>(["4:5"]);
+  // (selectedRatios removed — single-select only now via settings.aspect_ratio)
 
   // Creative brief
   const [briefOpen, setBriefOpen] = useState(false);
@@ -1306,19 +1301,12 @@ function ChatSession({
     [sendMessage, settings]
   );
 
-  // Called after ideation resolves: generates for the first ratio and queues the rest.
+  // Called after ideation resolves: generates with the current aspect ratio.
   const triggerGenerationWithCrops = useCallback(
     (prompt: string) => {
-      const [first, ...rest] = selectedRatios.length > 0 ? selectedRatios : [settings.aspect_ratio];
-      triggerGeneration(prompt, first !== settings.aspect_ratio ? first : undefined);
-      if (rest.length > 0) {
-        setQueue((prev) => [
-          ...prev,
-          ...rest.map((r) => ({ prompt, ratioOverride: r })),
-        ]);
-      }
+      triggerGeneration(prompt);
     },
-    [triggerGeneration, selectedRatios, settings.aspect_ratio]
+    [triggerGeneration]
   );
 
   const handleBriefSubmit = useCallback(async () => {
@@ -1877,65 +1865,27 @@ function ChatSession({
                   </ModelSelectorContent>
                 </ModelSelector>
 
-                {/* Aspect ratio — multi-select popover */}
-                {(() => {
-                  const ALL_RATIOS = [
-                    ...(settings.model !== "bytedance/seedream-4.5" ? [{ value: "4:5", label: "4:5 (native)" }] : []),
-                    { value: "1:1", label: "1:1 (square)" },
-                    { value: "3:4", label: "3:4" },
-                    { value: "9:16", label: "9:16 (story)" },
-                    { value: "16:9", label: "16:9 (wide)" },
-                    { value: "4:3", label: "4:3" },
-                    { value: "3:2", label: "3:2" },
-                    { value: "2:3", label: "2:3" },
-                  ];
-                  const label = selectedRatios.length === 1
-                    ? (ALL_RATIOS.find((r) => r.value === selectedRatios[0])?.label ?? selectedRatios[0])
-                    : `${selectedRatios.length} ratios`;
-                  return (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 min-w-[100px] font-normal justify-between">
-                          <span>{label}</span>
-                          <ChevronDownIcon className="h-3 w-3 text-muted-foreground" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-48 p-2">
-                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2 px-1">Crop formats</p>
-                        <div className="space-y-0.5">
-                          {ALL_RATIOS.map(({ value, label: ratioLabel }) => {
-                            const checked = selectedRatios.includes(value);
-                            return (
-                              <button
-                                key={value}
-                                onClick={() => {
-                                  setSelectedRatios((prev) => {
-                                    if (checked && prev.length === 1) return prev; // keep at least one
-                                    const next = checked ? prev.filter((r) => r !== value) : [...prev, value];
-                                    // Keep settings.aspect_ratio in sync with first selected
-                                    if (next.length > 0) setSettings((s) => ({ ...s, aspect_ratio: next[0] }));
-                                    return next;
-                                  });
-                                }}
-                                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-left transition-colors ${
-                                  checked ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
-                                }`}
-                              >
-                                <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${checked ? "bg-primary border-primary" : "border-muted-foreground/40"}`}>
-                                  {checked && <CheckCircleIcon className="h-2.5 w-2.5 text-primary-foreground" />}
-                                </div>
-                                {ratioLabel}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        {selectedRatios.length > 1 && (
-                          <p className="text-[10px] text-muted-foreground mt-2 px-1">Will queue {selectedRatios.length} crops per generation</p>
-                        )}
-                      </PopoverContent>
-                    </Popover>
-                  );
-                })()}
+                {/* Aspect ratio — single select */}
+                <Select
+                  value={settings.aspect_ratio}
+                  onValueChange={(v) => setSettings((s) => ({ ...s, aspect_ratio: v }))}
+                >
+                  <SelectTrigger className="h-7 text-xs w-auto min-w-[100px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {settings.model !== "bytedance/seedream-4.5" && (
+                      <SelectItem value="4:5">4:5 (native)</SelectItem>
+                    )}
+                    <SelectItem value="1:1">1:1 (square)</SelectItem>
+                    <SelectItem value="3:4">3:4</SelectItem>
+                    <SelectItem value="9:16">9:16 (story)</SelectItem>
+                    <SelectItem value="16:9">16:9 (wide)</SelectItem>
+                    <SelectItem value="4:3">4:3</SelectItem>
+                    <SelectItem value="3:2">3:2</SelectItem>
+                    <SelectItem value="2:3">2:3</SelectItem>
+                  </SelectContent>
+                </Select>
 
                 {/* Google models: resolution + output format */}
                 {settings.model.startsWith("google/") && (
