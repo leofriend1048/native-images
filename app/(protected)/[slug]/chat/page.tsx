@@ -1510,9 +1510,9 @@ function ChatSession({
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
+    <div className="flex flex-col flex-1 min-h-0">
       {/* Conversation */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden">
         <Conversation className="h-full">
           <ConversationContent className="max-w-3xl mx-auto px-4 py-6 gap-6">
             {messages.length === 0 && phase === "idle" ? (
@@ -1723,7 +1723,7 @@ function ChatSession({
       </div>
 
       {/* Input area */}
-      <div className="shrink-0 border-t bg-background sticky bottom-0 z-10">
+      <div className="shrink-0 border-t bg-background">
         <div className="max-w-3xl mx-auto px-4 py-3 space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
             {/* Quick-action to re-run ideation on an existing conversation */}
