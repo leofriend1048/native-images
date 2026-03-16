@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import type { UIMessage } from "ai";
 import {
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/command";
 import { ModelSelectorLogo } from "@/components/ai-elements/model-selector";
 import { PlusIcon, CopyIcon, ImageIcon, CheckIcon } from "lucide-react";
+import { onChatListChanged } from "@/lib/chat-events";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -61,21 +63,37 @@ function getLastImageUrl(messages: UIMessage[]): string | null {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function CommandPalette({
-  savedChats,
   currentModel,
   messages,
-  onSelectChat,
-  onNewChat,
   onSetModel,
 }: {
-  savedChats: ChatSummary[];
   currentModel: ModelId;
   messages: UIMessage[];
-  onSelectChat: (id: string) => void;
-  onNewChat: () => void;
   onSetModel: (model: ModelId) => void;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  // Extract slug from pathname (e.g. /michael-todd-beauty/chat -> michael-todd-beauty)
+  const slug = pathname.split("/")[1] || "";
+  const base = `/${slug}`;
   const [open, setOpen] = useState(false);
+  const [chats, setChats] = useState<ChatSummary[]>([]);
+
+  const fetchChats = useCallback(async () => {
+    try {
+      const res = await fetch("/api/chats");
+      if (res.ok) {
+        const data = await res.json();
+        setChats(Array.isArray(data.chats) ? data.chats : []);
+      }
+    } catch { /* silent */ }
+  }, []);
+
+  // Fetch chats on mount + listen for changes
+  useEffect(() => {
+    fetchChats();
+    return onChatListChanged(fetchChats);
+  }, [fetchChats]);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -109,7 +127,7 @@ export function CommandPalette({
 
         {/* ── Actions ──────────────────────────────────────── */}
         <CommandGroup heading="Actions">
-          <CommandItem onSelect={() => run(onNewChat)}>
+          <CommandItem onSelect={() => run(() => router.push(`${base}/chat`))}>
             <PlusIcon className="size-4 shrink-0" />
             <span>New chat</span>
           </CommandItem>
@@ -151,15 +169,15 @@ export function CommandPalette({
         </CommandGroup>
 
         {/* ── Recent chats ─────────────────────────────────── */}
-        {savedChats.length > 0 && (
+        {chats.length > 0 && (
           <>
             <CommandSeparator />
             <CommandGroup heading="Recent chats">
-              {savedChats.slice(0, 10).map((chat) => (
+              {chats.slice(0, 10).map((chat) => (
                 <CommandItem
                   key={chat.id}
                   value={`chat ${chat.title}`}
-                  onSelect={() => run(() => onSelectChat(chat.id))}
+                  onSelect={() => run(() => router.push(`${base}/chat/${chat.id}`))}
                 >
                   <div className="size-5 rounded overflow-hidden shrink-0 bg-muted border flex items-center justify-center">
                     {chat.thumbnail_url ? (

@@ -24,6 +24,11 @@ const nextConfig: NextConfig = {
         hostname: "pbxt.replicate.delivery",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "*.supabase.co",
+        pathname: "/storage/v1/object/public/**",
+      },
     ],
   },
   serverExternalPackages: ["@libsql/client"],

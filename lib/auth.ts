@@ -7,6 +7,7 @@ const SECRET = new TextEncoder().encode(
 );
 
 const COOKIE_NAME = "session";
+const WORKSPACE_COOKIE = "active-workspace";
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
 export interface SessionPayload {
@@ -63,4 +64,23 @@ export async function setSessionCookie(token: string) {
 export async function clearSessionCookie() {
   const cookieStore = await cookies();
   cookieStore.delete(COOKIE_NAME);
+  cookieStore.delete(WORKSPACE_COOKIE);
+}
+
+// ─── Active Workspace Cookie ─────────────────────────────────────────────────
+
+export async function getActiveWorkspaceId(): Promise<string | null> {
+  const cookieStore = await cookies();
+  return cookieStore.get(WORKSPACE_COOKIE)?.value || null;
+}
+
+export async function setActiveWorkspaceCookie(workspaceId: string) {
+  const cookieStore = await cookies();
+  cookieStore.set(WORKSPACE_COOKIE, workspaceId, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: MAX_AGE,
+    path: "/",
+  });
 }

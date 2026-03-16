@@ -22,6 +22,7 @@ export default async function DeckPage({
       id: img.id,
       user_id: img.user_id,
       chat_id: img.chat_id,
+      workspace_id: img.workspace_id,
       url: img.url,
       prompt: img.prompt,
       model: img.model,

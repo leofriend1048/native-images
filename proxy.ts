@@ -3,9 +3,13 @@ import { getSessionFromRequest } from "@/lib/auth";
 
 const PUBLIC_PATHS = [
   "/login",
+  "/register",
   "/invite",
   "/api/auth/login",
+  "/api/auth/register",
+  "/api/auth/invite",
   "/deck/",
+  "/docs",
 ];
 
 export async function proxy(req: NextRequest) {
@@ -16,7 +20,7 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow all other API routes to handle their own auth
+  // Allow all non-admin API routes to handle their own auth
   if (pathname.startsWith("/api/") && !pathname.startsWith("/api/admin/") && pathname !== "/api/generate") {
     return NextResponse.next();
   }
@@ -30,14 +34,11 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // Admin-only routes
-  if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin/")) {
+  // Admin-only API routes
+  if (pathname.startsWith("/api/admin/")) {
     const adminEmail = process.env.ADMIN_EMAIL;
     if (!adminEmail || session.email !== adminEmail) {
-      if (pathname.startsWith("/api/")) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
-      return NextResponse.redirect(new URL("/chat", req.url));
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
   }
 

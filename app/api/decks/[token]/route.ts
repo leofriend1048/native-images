@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/auth";
 import { getDeckByToken, getGeneratedImagesByIds, deleteDeckById, setDeckActive, renameDeck } from "@/lib/db";
 
+// Public GET — no auth required (token-based access)
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ token: string }> }

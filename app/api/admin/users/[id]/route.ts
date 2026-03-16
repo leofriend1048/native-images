@@ -1,25 +1,50 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getActiveWorkspaceId, getSession } from "@/lib/auth";
 import {
   getUserById,
-  getUsersWithStats,
-  getGeneratedImagesByUser,
-  getDecksByUser,
+  getUsersWithStatsByWorkspace,
+  getGeneratedImagesByUserAndWorkspace,
+  getDecksByUserAndWorkspace,
   getGeneratedImagesByIds,
+  getWorkspaceMembership,
+  getWorkspaceById,
 } from "@/lib/db";
+import { isWorkspaceAdmin } from "@/lib/workspace";
 
-function isAdmin(session: { email: string; isAdmin: boolean }) {
+function isGlobalAdmin(session: { email: string; isAdmin: boolean }) {
   const adminEmail = process.env.ADMIN_EMAIL;
   return adminEmail ? session.email === adminEmail : session.isAdmin;
 }
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession();
-  if (!session || !isAdmin(session)) {
+  if (!session) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const url = new URL(req.url);
+  const queryWsId = url.searchParams.get("workspaceId");
+  let workspaceId: string | null = null;
+
+  if (queryWsId && isGlobalAdmin(session)) {
+    const ws = await getWorkspaceById(queryWsId);
+    if (!ws) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+    workspaceId = queryWsId;
+  } else {
+    workspaceId = await getActiveWorkspaceId();
+    if (!workspaceId) {
+      return NextResponse.json({ error: "No active workspace" }, { status: 400 });
+    }
+
+    const membership = await getWorkspaceMembership(workspaceId, session.userId);
+    const isWsAdmin = membership ? isWorkspaceAdmin({ session, workspaceId, role: membership.role }) : false;
+
+    if (!isGlobalAdmin(session) && !isWsAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
   }
 
   const { id } = await params;
@@ -29,9 +54,9 @@ export async function GET(
   }
 
   const [allWithStats, images, decks] = await Promise.all([
-    getUsersWithStats(),
-    getGeneratedImagesByUser(id),
-    getDecksByUser(id),
+    getUsersWithStatsByWorkspace(workspaceId),
+    getGeneratedImagesByUserAndWorkspace(id, workspaceId),
+    getDecksByUserAndWorkspace(id, workspaceId),
   ]);
 
   const stats = allWithStats.find((u) => u.id === id);

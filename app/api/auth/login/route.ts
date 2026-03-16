@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { getUserByEmail, logUserLogin } from "@/lib/db";
-import { signToken, setSessionCookie } from "@/lib/auth";
+import { getUserByEmail, logUserLogin, getWorkspacesByUserId, getWorkspaceById, MTB_WORKSPACE_ID } from "@/lib/db";
+import { signToken, setSessionCookie, setActiveWorkspaceCookie } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,10 +32,22 @@ export async function POST(req: NextRequest) {
 
     await setSessionCookie(token);
 
+    // Set active workspace cookie and determine slug for redirect
+    let activeWsId = user.default_workspace_id;
+    if (!activeWsId) {
+      const workspaces = await getWorkspacesByUserId(user.id);
+      activeWsId = workspaces[0]?.id || MTB_WORKSPACE_ID;
+    }
+    await setActiveWorkspaceCookie(activeWsId);
+
+    const activeWs = await getWorkspaceById(activeWsId);
+    const workspaceSlug = activeWs?.slug || "chat";
+
     await logUserLogin(user.id);
 
     return NextResponse.json({
       user: { id: user.id, email: user.email, name: user.name, isAdmin },
+      workspaceSlug,
     });
   } catch (err) {
     console.error("Login error:", err);

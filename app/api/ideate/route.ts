@@ -1,7 +1,8 @@
 import { generateObject } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
+import { createAnthropic } from "@ai-sdk/anthropic";
 import { z } from "zod/v4";
-import { getSession } from "@/lib/auth";
+import { getWorkspaceApiKeys } from "@/lib/db";
+import { requireWorkspaceAccess } from "@/lib/workspace";
 
 export const maxDuration = 30;
 
@@ -184,13 +185,17 @@ ADDITIONAL CONCEPTS — suggest 2-3 adjacent angles for the SAME product and per
 // ─── Route ───────────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireWorkspaceAccess();
+  if (!ctx) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
     });
   }
+
+  // Per-workspace API client
+  const keys = await getWorkspaceApiKeys(ctx.workspaceId);
+  const anthropic = createAnthropic({ apiKey: keys.anthropicApiKey });
 
   const { concept, answers }: { concept: string; answers?: Record<string, string> } =
     await req.json();

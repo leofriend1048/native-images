@@ -1,25 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
-import { getUsersWithStats, deleteUser, getUserById } from "@/lib/db";
+import { getActiveWorkspaceId, getSession } from "@/lib/auth";
+import { getUsersWithStatsByWorkspace, deleteUser, getUserById, getWorkspaceMembership, getWorkspaceById } from "@/lib/db";
+import { isWorkspaceAdmin } from "@/lib/workspace";
 
-function isAdmin(session: { email: string; isAdmin: boolean }) {
+function isGlobalAdmin(session: { email: string; isAdmin: boolean }) {
   const adminEmail = process.env.ADMIN_EMAIL;
   return adminEmail ? session.email === adminEmail : session.isAdmin;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await getSession();
-  if (!session || !isAdmin(session)) {
+  if (!session) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const users = await getUsersWithStats();
+  // Global admins can specify a workspaceId query param to view any workspace
+  const queryWsId = req.nextUrl.searchParams.get("workspaceId");
+  let workspaceId: string | null = null;
+
+  if (queryWsId && isGlobalAdmin(session)) {
+    const ws = await getWorkspaceById(queryWsId);
+    if (!ws) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+    workspaceId = queryWsId;
+  } else {
+    workspaceId = await getActiveWorkspaceId();
+    if (!workspaceId) {
+      return NextResponse.json({ error: "No active workspace" }, { status: 400 });
+    }
+
+    const membership = await getWorkspaceMembership(workspaceId, session.userId);
+    const isWsAdmin = membership ? isWorkspaceAdmin({ session, workspaceId, role: membership.role }) : false;
+
+    if (!isGlobalAdmin(session) && !isWsAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
+  const users = await getUsersWithStatsByWorkspace(workspaceId);
   return NextResponse.json({ users });
 }
 
 export async function DELETE(req: NextRequest) {
   const session = await getSession();
-  if (!session || !isAdmin(session)) {
+  if (!session || !isGlobalAdmin(session)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -29,7 +52,6 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "ID is required" }, { status: 400 });
     }
 
-    // Prevent deleting self
     if (id === session.userId) {
       return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 });
     }
@@ -39,7 +61,6 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Prevent deleting the admin
     const adminEmail = process.env.ADMIN_EMAIL;
     if (adminEmail && user.email === adminEmail) {
       return NextResponse.json({ error: "Cannot delete the admin account" }, { status: 400 });

@@ -1,17 +1,13 @@
 import { streamText, UIMessage, convertToModelMessages, stepCountIs } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
+import { createAnthropic } from "@ai-sdk/anthropic";
 import Replicate from "replicate";
 import { z } from "zod/v4";
-import { getSession } from "@/lib/auth";
 import { mirrorUrlToStorage, uploadDataUrlToStorage } from "@/lib/storage";
-import { insertGeneratedImage, initSchema } from "@/lib/db";
+import { insertGeneratedImage, initSchema, getWorkspaceApiKeys } from "@/lib/db";
+import { requireWorkspaceAccess } from "@/lib/workspace";
 import { nanoid } from "nanoid";
 
 export const maxDuration = 300;
-
-const replicate = new Replicate({
-  auth: process.env.REPLICATE_API_TOKEN,
-});
 
 const SYSTEM_PROMPT = `You are a native advertising creative expert and quality reviewer. Your job has two phases:
 
@@ -148,16 +144,22 @@ FINAL TEXT RESPONSE RULES (critical):
 - After a failed review with max retries, briefly note what the issue was in 1 sentence.`;
 
 export async function POST(req: Request) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireWorkspaceAccess();
+  if (!ctx) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
     });
   }
+  const { session, workspaceId } = ctx;
 
   // Ensure schema exists (safe no-op if tables already present)
   await initSchema().catch(() => {});
+
+  // Per-workspace API clients
+  const keys = await getWorkspaceApiKeys(workspaceId);
+  const anthropic = createAnthropic({ apiKey: keys.anthropicApiKey });
+  const replicate = new Replicate({ auth: keys.replicateApiToken });
 
   const {
     messages,
@@ -421,6 +423,7 @@ export async function POST(req: Request) {
                   id: nanoid(),
                   user_id: session.userId,
                   chat_id: settings.chatId ?? null,
+                  workspace_id: workspaceId,
                   url,
                   prompt,
                   model: modelId,

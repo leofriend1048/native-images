@@ -1,19 +1,19 @@
-import { getSession } from "@/lib/auth";
 import { getChatById, deleteChat } from "@/lib/db";
+import { requireWorkspaceAccess } from "@/lib/workspace";
 
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireWorkspaceAccess();
+  if (!ctx) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { id } = await params;
   const chat = await getChatById(id);
 
-  if (!chat || chat.user_id !== session.userId) {
+  if (!chat || chat.user_id !== ctx.session.userId || chat.workspace_id !== ctx.workspaceId) {
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -27,15 +27,15 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireWorkspaceAccess();
+  if (!ctx) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { id } = await params;
   const chat = await getChatById(id);
 
-  if (!chat || chat.user_id !== session.userId) {
+  if (!chat || chat.user_id !== ctx.session.userId || chat.workspace_id !== ctx.workspaceId) {
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 

@@ -1,24 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
-import JSZip from "jszip";
 import {
   DownloadIcon,
   CopyIcon,
   CheckCircleIcon,
   XIcon,
-  PanelLeftIcon,
   ImageIcon,
   FilterIcon,
   MessageSquareIcon,
-  BookOpenIcon,
-  UserCircleIcon,
-  ShieldIcon,
   LayersIcon,
-  GalleryHorizontalIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,7 +46,6 @@ const MODEL_LABELS: Record<string, string> = {
 };
 
 function relativeTime(dateStr: string): string {
-  // SQLite CURRENT_TIMESTAMP is UTC but lacks a timezone marker — force UTC parsing.
   const utc = dateStr.includes("T") ? dateStr : dateStr.replace(" ", "T") + "Z";
   const ms = Date.now() - new Date(utc).getTime();
   const mins = Math.floor(ms / 60_000);
@@ -68,10 +62,12 @@ function GalleryCard({
   image,
   selected,
   onToggleSelect,
+  slug,
 }: {
   image: GeneratedImage;
   selected: boolean;
   onToggleSelect: () => void;
+  slug: string;
 }) {
   const [promptOpen, setPromptOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
@@ -101,7 +97,6 @@ function GalleryCard({
             : "hover:border-foreground/20"
         }`}
       >
-        {/* Selection checkbox — always visible, stronger on hover/selected */}
         <button
           className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-150 shadow-[0_1px_4px_rgba(0,0,0,0.5)] ${
             selected
@@ -117,30 +112,29 @@ function GalleryCard({
           }
         </button>
 
-        {/* Selected overlay */}
         {selected && (
           <div className="absolute inset-0 z-[1] bg-primary/10 pointer-events-none" />
         )}
 
-        {/* Image — click to select, double-click to fullscreen */}
         <div
           className="cursor-pointer relative"
+          style={{ aspectRatio: image.aspect_ratio?.replace(":", "/") ?? "4/5" }}
           onClick={onToggleSelect}
           onDoubleClick={(e) => { e.stopPropagation(); setFullscreen(true); }}
         >
           {!imgLoaded && (
-            <Skeleton className="w-full rounded-none" style={{ aspectRatio: image.aspect_ratio?.replace(":", "/") ?? "4/5" }} />
+            <Skeleton className="absolute inset-0 rounded-none" />
           )}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src={image.url}
             alt={image.prompt}
-            className={`w-full object-cover transition-opacity duration-300 ${imgLoaded ? "opacity-100" : "opacity-0 absolute inset-0"}`}
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+            className={`object-cover transition-opacity duration-300 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
             onLoad={() => setImgLoaded(true)}
           />
         </div>
 
-        {/* Meta overlay */}
         <div className="p-2.5 space-y-1.5">
           <div className="flex items-center gap-1.5 flex-wrap">
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-mono">
@@ -149,40 +143,28 @@ function GalleryCard({
             <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
               {MODEL_LABELS[image.model] ?? image.model}
             </Badge>
-            <span className="text-[10px] text-muted-foreground ml-auto">{relativeTime(image.created_at)}</span>
+            <span className="text-[10px] text-muted-foreground ml-auto" suppressHydrationWarning>{relativeTime(image.created_at)}</span>
           </div>
 
           <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">{image.prompt}</p>
 
           <div className="flex items-center gap-1 pt-0.5">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-1.5 text-[10px] gap-1"
-              onClick={handleDownload}
-            >
+            <Button variant="ghost" size="sm" className="h-6 px-1.5 text-[10px] gap-1" onClick={handleDownload}>
               <DownloadIcon className="h-2.5 w-2.5" />
               Save
             </Button>
             <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-1.5 text-[10px] gap-1"
+              variant="ghost" size="sm" className="h-6 px-1.5 text-[10px] gap-1"
               onClick={() => { navigator.clipboard.writeText(image.url); toast.success("URL copied"); }}
             >
               <CopyIcon className="h-2.5 w-2.5" />
               URL
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-1.5 text-[10px] gap-1"
-              onClick={() => setPromptOpen((v) => !v)}
-            >
+            <Button variant="ghost" size="sm" className="h-6 px-1.5 text-[10px] gap-1" onClick={() => setPromptOpen((v) => !v)}>
               Prompt
             </Button>
             {image.chat_id && (
-              <Link href={`/chat/${image.chat_id}`}>
+              <Link href={`/${slug}/chat/${image.chat_id}`}>
                 <Button variant="ghost" size="sm" className="h-6 px-1.5 text-[10px] gap-1">
                   <MessageSquareIcon className="h-2.5 w-2.5" />
                   Chat
@@ -199,7 +181,6 @@ function GalleryCard({
         </div>
       </div>
 
-      {/* Fullscreen */}
       {fullscreen && (
         <div
           className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
@@ -211,24 +192,27 @@ function GalleryCard({
           >
             <XIcon className="h-6 w-6" />
           </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={image.url}
-            alt={image.prompt}
-            className="max-h-full max-w-full object-contain rounded-xl"
-            onClick={(e) => e.stopPropagation()}
-          />
+          <div className="relative w-full h-full" onClick={(e) => e.stopPropagation()}>
+            <Image
+              src={image.url}
+              alt={image.prompt}
+              fill
+              sizes="100vw"
+              className="object-contain rounded-xl"
+              priority
+            />
+          </div>
         </div>
       )}
     </>
   );
 }
 
-export default function GalleryPage() {
+export default function GalleryClient({ initialImages }: { initialImages: GeneratedImage[] }) {
   const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<{ name: string | null; email: string; isAdmin: boolean } | null>(null);
-  const [images, setImages] = useState<GeneratedImage[]>([]);
-  const [loading, setLoading] = useState(true);
+  const pathname = usePathname();
+  const slug = pathname.split("/")[1] || "";
+  const [images] = useState<GeneratedImage[]>(initialImages);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filterRatio, setFilterRatio] = useState<string | null>(null);
   const [filterModel, setFilterModel] = useState<string | null>(null);
@@ -238,19 +222,6 @@ export default function GalleryPage() {
   const [createdDeckUrl, setCreatedDeckUrl] = useState<string | null>(null);
   const [bulkDownloading, setBulkDownloading] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => r.json())
-      .then((d) => { if (d.user) setCurrentUser(d.user); })
-      .catch(() => {});
-
-    fetch("/api/images")
-      .then((r) => r.json())
-      .then((d) => { if (Array.isArray(d.images)) setImages(d.images); })
-      .catch(() => toast.error("Failed to load images"))
-      .finally(() => setLoading(false));
-  }, []);
-
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -259,14 +230,14 @@ export default function GalleryPage() {
     });
   }, []);
 
-  const selectAll = () => setSelectedIds(new Set(filtered.map((img) => img.id)));
-  const clearSelection = () => setSelectedIds(new Set());
-
   const filtered = images.filter((img) => {
     if (filterRatio && img.aspect_ratio !== filterRatio) return false;
     if (filterModel && img.model !== filterModel) return false;
     return true;
   });
+
+  const selectAll = () => setSelectedIds(new Set(filtered.map((img) => img.id)));
+  const clearSelection = () => setSelectedIds(new Set());
 
   const allRatios = [...new Set(images.map((img) => img.aspect_ratio))];
   const allModels = [...new Set(images.map((img) => img.model))];
@@ -276,7 +247,8 @@ export default function GalleryPage() {
     if (toDownload.length === 0) return;
     setBulkDownloading(true);
     try {
-      const zip = new JSZip();
+      const { default: JSZipLib } = await import("jszip");
+      const zip = new JSZipLib();
       await Promise.all(
         toDownload.map(async (img, i) => {
           const res = await fetch(img.url);
@@ -321,68 +293,7 @@ export default function GalleryPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background overflow-hidden">
-      {/* Header */}
-      <header className="shrink-0 border-b bg-background/95 backdrop-blur-sm z-10">
-        <div className="px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2.5">
-              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-foreground">
-                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-background">
-                  <rect x="2" y="2" width="7" height="7" rx="1.5" fill="currentColor" />
-                  <rect x="11" y="2" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.4" />
-                  <rect x="2" y="11" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.4" />
-                  <rect x="11" y="11" width="7" height="7" rx="1.5" fill="currentColor" />
-                </svg>
-              </div>
-              <span className="font-semibold text-sm tracking-tight">Native Ads</span>
-            </div>
-            <div className="flex items-center gap-1 ml-2">
-              <Link href="/chat">
-                <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
-                  <MessageSquareIcon className="h-3.5 w-3.5" />
-                  Chat
-                </Button>
-              </Link>
-              <Button variant="secondary" size="sm" className="h-8 gap-1.5 text-xs">
-                <GalleryHorizontalIcon className="h-3.5 w-3.5" />
-                Gallery
-              </Button>
-              <Link href="/decks">
-                <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
-                  <LayersIcon className="h-3.5 w-3.5" />
-                  Decks
-                </Button>
-              </Link>
-            </div>
-          </div>
-          <div className="flex items-center gap-1">
-            {currentUser?.isAdmin && (
-              <Link href="/admin">
-                <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
-                  <ShieldIcon className="h-3.5 w-3.5" />
-                  Admin
-                </Button>
-              </Link>
-            )}
-            <Link href="/docs">
-              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
-                <BookOpenIcon className="h-3.5 w-3.5" />
-                Docs
-              </Button>
-            </Link>
-            <Link href="/account">
-              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
-                <div className="flex items-center justify-center w-5 h-5 rounded-full bg-foreground text-background text-[10px] font-semibold shrink-0">
-                  {currentUser?.name ? currentUser.name.trim().charAt(0).toUpperCase() : <UserCircleIcon className="h-3 w-3" />}
-                </div>
-                {currentUser?.name ? currentUser.name.trim().split(/\s+/)[0] : "Account"}
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
-
+    <div className="flex flex-col h-full bg-background overflow-hidden">
       {/* Filters bar */}
       <div className="shrink-0 border-b px-4 py-2 flex items-center gap-2 flex-wrap bg-background/80">
         <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
@@ -426,31 +337,7 @@ export default function GalleryPage() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 py-4">
-        {loading ? (
-          <div className="columns-2 sm:columns-3 lg:columns-4 xl:columns-5 gap-3 space-y-3 pb-24">
-            {[160, 220, 180, 200, 240, 170, 190, 210, 165, 230, 185, 195].map((h, i) => (
-              <div key={i} className="break-inside-avoid mb-3">
-                <div className="rounded-xl border bg-muted overflow-hidden">
-                  <Skeleton className="w-full rounded-none" style={{ height: h }} />
-                  <div className="p-2.5 space-y-2">
-                    <div className="flex items-center gap-1.5">
-                      <Skeleton className="h-4 w-10 rounded-full" />
-                      <Skeleton className="h-4 w-16 rounded-full" />
-                      <Skeleton className="h-3 w-12 rounded ml-auto" />
-                    </div>
-                    <Skeleton className="h-3 w-full rounded" />
-                    <Skeleton className="h-3 w-4/5 rounded" />
-                    <div className="flex gap-1 pt-0.5">
-                      <Skeleton className="h-6 w-12 rounded" />
-                      <Skeleton className="h-6 w-10 rounded" />
-                      <Skeleton className="h-6 w-14 rounded" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : filtered.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 gap-3 text-center">
             <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center">
               <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
@@ -462,13 +349,12 @@ export default function GalleryPage() {
               </p>
             </div>
             {images.length === 0 && (
-              <Link href="/chat">
+              <Link href={`/${slug}/chat`}>
                 <Button size="sm" className="gap-1.5 text-xs">Go to chat</Button>
               </Link>
             )}
           </div>
         ) : (
-          /* Masonry grid using CSS columns */
           <div className="columns-2 sm:columns-3 lg:columns-4 xl:columns-5 gap-3 space-y-3 pb-24">
             {filtered.map((image) => (
               <div key={image.id} className="break-inside-avoid mb-3">
@@ -476,6 +362,7 @@ export default function GalleryPage() {
                   image={image}
                   selected={selectedIds.has(image.id)}
                   onToggleSelect={() => toggleSelect(image.id)}
+                  slug={slug}
                 />
               </div>
             ))}
@@ -493,18 +380,14 @@ export default function GalleryPage() {
           </div>
           <div className="flex items-center gap-2">
             <Button
-              variant="outline"
-              size="sm"
-              className="h-8 gap-1.5 text-xs"
-              disabled={bulkDownloading}
-              onClick={handleBulkDownload}
+              variant="outline" size="sm" className="h-8 gap-1.5 text-xs"
+              disabled={bulkDownloading} onClick={handleBulkDownload}
             >
               <DownloadIcon className="h-3.5 w-3.5" />
               {bulkDownloading ? "Downloading…" : `Download ${selectedIds.size}`}
             </Button>
             <Button
-              size="sm"
-              className="h-8 gap-1.5 text-xs"
+              size="sm" className="h-8 gap-1.5 text-xs"
               onClick={() => { setDeckTitle(""); setCreatedDeckUrl(null); setDeckDialogOpen(true); }}
             >
               <LayersIcon className="h-3.5 w-3.5" />
@@ -529,9 +412,7 @@ export default function GalleryPage() {
               <div className="flex items-center gap-2">
                 <div className="flex-1 text-xs font-mono bg-muted rounded px-3 py-2 truncate">{createdDeckUrl}</div>
                 <Button
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0 h-8 gap-1.5 text-xs"
+                  variant="outline" size="sm" className="shrink-0 h-8 gap-1.5 text-xs"
                   onClick={() => { navigator.clipboard.writeText(createdDeckUrl); toast.success("Link copied!"); }}
                 >
                   <CopyIcon className="h-3 w-3" />
@@ -560,11 +441,7 @@ export default function GalleryPage() {
               </div>
               <DialogFooter>
                 <Button variant="outline" size="sm" onClick={() => setDeckDialogOpen(false)}>Cancel</Button>
-                <Button
-                  size="sm"
-                  disabled={deckCreating || !deckTitle.trim()}
-                  onClick={handleCreateDeck}
-                >
+                <Button size="sm" disabled={deckCreating || !deckTitle.trim()} onClick={handleCreateDeck}>
                   {deckCreating ? "Creating…" : "Create & get link"}
                 </Button>
               </DialogFooter>

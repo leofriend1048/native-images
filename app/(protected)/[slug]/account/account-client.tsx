@@ -1,44 +1,30 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Loader2, LogOut, User } from "lucide-react";
-import Link from "next/link";
+import { Loader2, LogOut, User } from "lucide-react";
 
-interface CurrentUser {
+interface AccountUser {
   id: string;
   email: string;
   name: string | null;
   isAdmin: boolean;
 }
 
-export default function AccountPage() {
+export default function AccountClient({ initialUser }: { initialUser: AccountUser }) {
   const router = useRouter();
-  const [user, setUser] = useState<CurrentUser | null>(null);
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initialUser.name || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.user) {
-          setUser(data.user);
-          setName(data.user.name || "");
-        }
-      })
-      .catch(() => toast.error("Failed to load account"));
-  }, []);
 
   const handleSaveName = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +41,6 @@ export default function AccountPage() {
         return;
       }
       toast.success("Profile updated");
-      setUser((u) => u ? { ...u, name } : u);
     } catch {
       toast.error("Something went wrong");
     } finally {
@@ -105,27 +90,15 @@ export default function AccountPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center gap-3">
-          <Link href="/chat">
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
-          <span className="font-medium text-sm">Account</span>
-        </div>
-      </header>
-
+    <div className="h-full bg-background overflow-y-auto">
       <div className="max-w-2xl mx-auto px-4 py-10 space-y-10">
-        {/* Profile */}
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <User className="h-4 w-4 text-muted-foreground" />
             <h2 className="font-medium">Profile</h2>
           </div>
           <div className="text-sm text-muted-foreground">
-            {user?.email}
+            {initialUser.email}
           </div>
           <form onSubmit={handleSaveName} className="space-y-3">
             <div className="space-y-2">
@@ -146,7 +119,6 @@ export default function AccountPage() {
 
         <Separator />
 
-        {/* Password */}
         <div className="space-y-4">
           <h2 className="font-medium">Change password</h2>
           <form onSubmit={handleChangePassword} className="space-y-3">
@@ -190,7 +162,6 @@ export default function AccountPage() {
 
         <Separator />
 
-        {/* Sign out */}
         <div className="space-y-4">
           <h2 className="font-medium text-destructive">Sign out</h2>
           <Button

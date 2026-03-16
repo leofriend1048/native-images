@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,7 +33,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/chat");
+      router.push(`/${data.workspaceSlug}/chat`);
       router.refresh();
     } catch {
       toast.error("Something went wrong. Please try again.");
@@ -98,7 +99,10 @@ export default function LoginPage() {
         </form>
 
         <p className="text-center text-xs text-muted-foreground">
-          Access is by invite only.
+          No account?{" "}
+          <Link href="/register" className="underline">
+            Create a workspace
+          </Link>
         </p>
       </div>
     </div>

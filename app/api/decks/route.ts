@@ -1,12 +1,12 @@
-import { getSession } from "@/lib/auth";
-import { createDeck, getDecksByUser, getGeneratedImagesByIds } from "@/lib/db";
+import { createDeck, getDecksByUserAndWorkspace, getGeneratedImagesByIds } from "@/lib/db";
+import { requireWorkspaceAccess } from "@/lib/workspace";
 import { nanoid } from "nanoid";
 
 export async function GET() {
-  const session = await getSession();
-  if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await requireWorkspaceAccess();
+  if (!ctx) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const decks = await getDecksByUser(session.userId);
+  const decks = await getDecksByUserAndWorkspace(ctx.session.userId, ctx.workspaceId);
 
   // Collect first 4 image IDs per deck for thumbnail strips
   const allImageIds = decks.flatMap((d) => {
@@ -32,8 +32,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireWorkspaceAccess();
+  if (!ctx) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
   // Verify all image IDs belong to this user
   const images = await getGeneratedImagesByIds(imageIds);
   const ownedIds = images
-    .filter((img) => img.user_id === session.userId)
+    .filter((img) => img.user_id === ctx.session.userId)
     .map((img) => img.id);
 
   if (ownedIds.length === 0) {
@@ -70,7 +70,8 @@ export async function POST(req: Request) {
   const token = nanoid(24);
   const deck = await createDeck({
     id: nanoid(),
-    user_id: session.userId,
+    user_id: ctx.session.userId,
+    workspace_id: ctx.workspaceId,
     token,
     title: title.trim(),
     image_ids: JSON.stringify(ownedIds),

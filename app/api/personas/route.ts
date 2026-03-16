@@ -1,25 +1,25 @@
-import { getSession } from "@/lib/auth";
-import { getPersonasByUser, createPersona } from "@/lib/db";
+import { getPersonasByUserAndWorkspace, createPersona } from "@/lib/db";
+import { requireWorkspaceAccess } from "@/lib/workspace";
 import { nanoid } from "nanoid";
 
 export async function GET() {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireWorkspaceAccess();
+  if (!ctx) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
     });
   }
 
-  const personas = await getPersonasByUser(session.userId);
+  const personas = await getPersonasByUserAndWorkspace(ctx.session.userId, ctx.workspaceId);
   return new Response(JSON.stringify({ personas }), {
     headers: { "Content-Type": "application/json" },
   });
 }
 
 export async function POST(req: Request) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireWorkspaceAccess();
+  if (!ctx) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
@@ -36,7 +36,8 @@ export async function POST(req: Request) {
 
   const persona = await createPersona({
     id: nanoid(),
-    user_id: session.userId,
+    user_id: ctx.session.userId,
+    workspace_id: ctx.workspaceId,
     name: name.trim(),
     description: description.trim(),
   });

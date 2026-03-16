@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import type { GeneratedImage } from "@/lib/db";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -24,7 +25,6 @@ function Lightbox({
 }) {
   const [current, setCurrent] = useState(index);
   const [imgLoaded, setImgLoaded] = useState(false);
-  const lightboxImgRef = useRef<HTMLImageElement>(null);
   const image = images[current];
 
   const prev = useCallback(() => {
@@ -47,14 +47,9 @@ function Lightbox({
     return () => window.removeEventListener("keydown", handler);
   }, [onClose, prev, next]);
 
-  // Reset loaded state when image changes; check immediately if already cached
+  // Reset loaded state when image changes
   useEffect(() => {
     setImgLoaded(false);
-    // Small tick to let React set the new src before checking .complete
-    const t = setTimeout(() => {
-      if (lightboxImgRef.current?.complete) setImgLoaded(true);
-    }, 0);
-    return () => clearTimeout(t);
   }, [current]);
 
   return (
@@ -99,15 +94,18 @@ function Lightbox({
         {!imgLoaded && (
           <Skeleton className="absolute inset-0 rounded-xl" style={{ minWidth: 300, minHeight: 300 }} />
         )}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          ref={lightboxImgRef}
-          key={image.id}
-          src={image.url}
-          alt={image.prompt}
-          onLoad={() => setImgLoaded(true)}
-          className={`max-w-[90vw] max-h-[85vh] object-contain rounded-xl shadow-2xl transition-opacity duration-300 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
-        />
+        <div className="relative max-w-[90vw] max-h-[85vh]" style={{ width: "90vw", height: "85vh" }}>
+          <Image
+            key={image.id}
+            src={image.url}
+            alt={image.prompt}
+            fill
+            sizes="90vw"
+            priority
+            onLoad={() => setImgLoaded(true)}
+            className={`object-contain rounded-xl shadow-2xl transition-opacity duration-300 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
+          />
+        </div>
 
         {/* Caption */}
         {imgLoaded && (
@@ -172,12 +170,6 @@ function DeckImageCard({
   onOpen: () => void;
 }) {
   const [loaded, setLoaded] = useState(false);
-  const imgRef = useRef<HTMLImageElement>(null);
-
-  // Cached images never fire onLoad after mount — check immediately
-  useEffect(() => {
-    if (imgRef.current?.complete) setLoaded(true);
-  }, []);
 
   return (
     <div className="break-inside-avoid mb-3 sm:mb-4">
@@ -186,16 +178,16 @@ function DeckImageCard({
         onClick={onOpen}
       >
         {/* Image */}
-        <div className="relative">
-          {!loaded && <Skeleton className="w-full rounded-none" style={{ paddingBottom: "75%" }} />}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            ref={imgRef}
+        <div className="relative" style={{ aspectRatio: image.aspect_ratio?.replace(":", "/") ?? "4/5" }}>
+          {!loaded && <Skeleton className="absolute inset-0 rounded-none" />}
+          <Image
             src={image.url}
             alt={image.prompt}
-            loading={index < 8 ? "eager" : "lazy"}
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            priority={index < 4}
+            className={`object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
             onLoad={() => setLoaded(true)}
-            className={`w-full object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0 absolute inset-0"}`}
           />
           {/* Hover overlay */}
           {loaded && (

@@ -5,8 +5,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import type { ReasoningUIPart, UIMessage } from "ai";
 import { toast } from "sonner";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 // AI Elements
 import {
@@ -113,9 +112,7 @@ import {
   AlertCircleIcon,
   ListIcon,
   XCircleIcon,
-  PanelLeftIcon,
   TrashIcon,
-  MessageSquareIcon,
   BookOpenIcon,
   ChevronDownIcon,
   SunIcon,
@@ -148,7 +145,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { OnboardingModal, useOnboarding } from "@/components/onboarding/onboarding-modal";
-import { useProductTour } from "@/components/product-tour";
+import { emitChatListChanged } from "@/lib/chat-events";
 import { CreativeBriefDialog } from "@/components/creative-brief-dialog";
 import { CommandPalette } from "@/components/command-palette";
 
@@ -1062,126 +1059,6 @@ function IdeationPanel({
   );
 }
 
-// ─── Chat Sidebar ─────────────────────────────────────────────────────────────
-
-function ChatSidebar({
-  activeChatId,
-  chats,
-  onSelect,
-  onNew,
-  onDelete,
-}: {
-  activeChatId: string | null;
-  chats: ChatSummary[];
-  onSelect: (chatId: string) => void;
-  onNew: () => void;
-  onDelete: (chatId: string) => void;
-}) {
-  return (
-    <aside className="flex flex-col h-full border-r bg-background w-64 shrink-0 overflow-hidden">
-      {/* New chat button */}
-      <div className="p-3 border-b">
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full h-8 gap-1.5 text-xs justify-start"
-          onClick={onNew}
-        >
-          <PlusIcon className="h-3.5 w-3.5" />
-          New chat
-        </Button>
-      </div>
-
-      {/* Chat list */}
-      <div className="flex-1 overflow-y-auto py-2">
-        {(chats ?? []).length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-8 px-4 text-center">
-            <MessageSquareIcon className="h-8 w-8 text-muted-foreground/40" />
-            <p className="text-xs text-muted-foreground">
-              Your generated chats will appear here
-            </p>
-          </div>
-        ) : (
-          (chats ?? []).map((chat) => (
-            <ChatSidebarItem
-              key={chat.id}
-              chat={chat}
-              isActive={chat.id === activeChatId}
-              onSelect={() => onSelect(chat.id)}
-              onDelete={() => onDelete(chat.id)}
-            />
-          ))
-        )}
-      </div>
-    </aside>
-  );
-}
-
-function ChatSidebarItem({
-  chat,
-  isActive,
-  onSelect,
-  onDelete,
-}: {
-  chat: ChatSummary;
-  isActive: boolean;
-  onSelect: () => void;
-  onDelete: () => void;
-}) {
-  const [hovered, setHovered] = useState(false);
-
-  return (
-    <div
-      className={`group relative flex items-center gap-2.5 px-3 py-2 mx-1.5 rounded-lg cursor-pointer transition-colors ${
-        isActive
-          ? "bg-accent text-accent-foreground"
-          : "hover:bg-muted/60 text-foreground"
-      }`}
-      onClick={onSelect}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {/* Thumbnail */}
-      <div className="shrink-0 w-9 h-9 rounded-md overflow-hidden bg-muted border flex items-center justify-center">
-        {chat.thumbnail_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={chat.thumbnail_url}
-            alt=""
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <ImageIcon className="h-4 w-4 text-muted-foreground/50" />
-        )}
-      </div>
-
-      {/* Title + date */}
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium truncate leading-snug">
-          {chat.title}
-        </p>
-        <p className="text-[10px] text-muted-foreground mt-0.5">
-          {relativeTime(chat.updated_at)}
-        </p>
-      </div>
-
-      {/* Delete button — visible on hover */}
-      {hovered && (
-        <button
-          className="shrink-0 p-1 rounded hover:bg-destructive/10 hover:text-destructive transition-colors"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          title="Delete chat"
-        >
-          <TrashIcon className="h-3 w-3" />
-        </button>
-      )}
-    </div>
-  );
-}
-
 // ─── Chat Session ─────────────────────────────────────────────────────────────
 // Receives a stable key from the parent so it remounts cleanly on chat switch.
 
@@ -1189,22 +1066,14 @@ function ChatSession({
   chatId,
   preloadedMessages,
   onChatSaved,
-  onRefreshSidebar,
   pendingConcept,
   onPendingConceptConsumed,
-  savedChats,
-  onSelectChat,
-  onNewChat,
 }: {
   chatId: string | null;
   preloadedMessages: UIMessage[];
   onChatSaved: (id: string) => void;
-  onRefreshSidebar: () => void;
   pendingConcept?: string | null;
   onPendingConceptConsumed?: () => void;
-  savedChats: ChatSummary[];
-  onSelectChat: (id: string) => void;
-  onNewChat: () => void;
 }) {
   const [settings, setSettings] = useState<GenerationSettings>({
     model: "google/nano-banana-pro",
@@ -1331,13 +1200,13 @@ function ChatSession({
             chatIdRef.current = id;
             onChatSaved(id);
           }
-          onRefreshSidebar();
+          emitChatListChanged();
         }
       } catch {
         // non-critical — silent fail
       }
     },
-    [onChatSaved, onRefreshSidebar]
+    [onChatSaved]
   );
 
   // ── useChat ────────────────────────────────────────────────────────────────
@@ -1854,7 +1723,7 @@ function ChatSession({
       </div>
 
       {/* Input area */}
-      <div className="shrink-0 border-t bg-background">
+      <div className="shrink-0 border-t bg-background sticky bottom-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-3 space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
             {/* Quick-action to re-run ideation on an existing conversation */}
@@ -2365,11 +2234,8 @@ function ChatSession({
 
       {/* ⌘K command palette — always mounted so the keyboard shortcut works */}
       <CommandPalette
-        savedChats={savedChats}
         currentModel={settings.model}
         messages={messages}
-        onSelectChat={onSelectChat}
-        onNewChat={onNewChat}
         onSetModel={(model) => setSettings((s) => ({ ...s, model }))}
       />
     </div>
@@ -2385,17 +2251,10 @@ export default function ChatPage({
   initialChatId?: string;
   initialMessages?: UIMessage[];
 } = {}) {
-  const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<{
-    name: string | null;
-    email: string;
-    isAdmin: boolean;
-  } | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const pathname = usePathname();
+  const slug = pathname.split("/")[1] || "";
   const { open: onboardingOpen, setOpen: setOnboardingOpen, ready: onboardingReady } = useOnboarding();
-  const { startTour } = useProductTour();
   const [pendingConcept, setPendingConcept] = useState<string | null>(null);
-  const [savedChats, setSavedChats] = useState<ChatSummary[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(initialChatId ?? null);
   // chatKey is a monotonic counter used as the ChatSession `key`. It is ONLY
   // incremented on explicit user navigation (new chat / sidebar click). It must
@@ -2416,172 +2275,46 @@ export default function ChatPage({
     }
   }, [initialChatId, initialMessages]);
 
-  useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => r.json())
-      .then((d) => { if (d.user) setCurrentUser(d.user); })
-      .catch(() => {});
-  }, []);
-
-  const refreshSidebar = useCallback(async () => {
-    try {
-      const res = await fetch("/api/chats");
-      if (res.ok) {
-        const data = await res.json();
-        // Guard against null/undefined in case the API returns an unexpected shape
-        setSavedChats(Array.isArray(data.chats) ? data.chats : []);
-      }
-    } catch { /* silent */ }
-  }, []);
-
-  useEffect(() => { refreshSidebar(); }, [refreshSidebar]);
-
-  const handleSelectChat = useCallback((chatId: string) => {
-    router.push(`/chat/${chatId}`);
-  }, [router]);
-
-  const handleNewChat = useCallback(() => {
-    router.push("/chat");
-  }, [router]);
-
   const handleChatSaved = useCallback((id: string) => {
-    // Only update sidebar highlight — do NOT touch chatKey so the live
+    // Only update active ID — do NOT touch chatKey so the live
     // session is never remounted just because the chat was persisted.
     setActiveChatId(id);
-    refreshSidebar();
+    emitChatListChanged();
     // Silently update the URL bar so the current URL is bookmarkable and
     // survives a refresh, without triggering a Next.js navigation that
     // would remount the live session.
-    window.history.replaceState(null, "", `/chat/${id}`);
-  }, [refreshSidebar]);
-
-  const handleDeleteChat = useCallback(async (chatId: string) => {
-    try {
-      await fetch(`/api/chats/${chatId}`, { method: "DELETE" });
-      if (activeChatId === chatId) router.push("/chat");
-      refreshSidebar();
-    } catch {
-      toast.error("Failed to delete chat");
-    }
-  }, [activeChatId, router, refreshSidebar]);
+    window.history.replaceState(null, "", `/${slug}/chat/${id}`);
+  }, [slug]);
 
   return (
-    <div className="flex flex-col h-screen bg-background overflow-hidden">
-      {/* Header */}
-      <header className="shrink-0 border-b bg-background/95 backdrop-blur-sm z-10">
-        <div className="px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+    <div className="flex flex-col h-full bg-background overflow-hidden">
+      {/* Optional header for guide button */}
+      {onboardingReady && (
+        <header className="shrink-0 border-b bg-background/95 backdrop-blur-sm z-10">
+          <div className="px-4 h-10 flex items-center">
             <Button
               variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setSidebarOpen((v) => !v)}
-              title={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+              size="sm"
+              className="h-8 gap-1.5 text-xs ml-auto"
+              onClick={() => setOnboardingOpen(true)}
+              title="Open guide"
             >
-              <PanelLeftIcon className="h-4 w-4" />
+              <HelpCircleIcon className="h-3.5 w-3.5" />
+              Guide
             </Button>
-            <div className="flex items-center gap-2.5">
-              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-foreground">
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 20 20"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="text-background"
-                >
-                  <rect x="2" y="2" width="7" height="7" rx="1.5" fill="currentColor" />
-                  <rect x="11" y="2" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.4" />
-                  <rect x="2" y="11" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.4" />
-                  <rect x="11" y="11" width="7" height="7" rx="1.5" fill="currentColor" />
-                </svg>
-              </div>
-              <span className="font-semibold text-sm tracking-tight">Native Ads</span>
-              <kbd className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-border bg-muted text-[10px] text-muted-foreground font-mono select-none cursor-default">
-                ⌘K
-              </kbd>
-            </div>
           </div>
-          <div className="flex items-center gap-1">
-            {currentUser?.isAdmin && (
-              <Link href="/admin">
-                <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
-                  <ShieldIcon className="h-3.5 w-3.5" />
-                  Admin
-                </Button>
-              </Link>
-            )}
-            <Link href="/gallery">
-              <Button data-tour="gallery-link" variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
-                <GalleryHorizontalIcon className="h-3.5 w-3.5" />
-                Gallery
-              </Button>
-            </Link>
-            {onboardingReady && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 gap-1.5 text-xs"
-                onClick={() => setOnboardingOpen(true)}
-                title="Open guide"
-              >
-                <HelpCircleIcon className="h-3.5 w-3.5" />
-                Guide
-              </Button>
-            )}
-            <Link href="/docs">
-              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
-                <BookOpenIcon className="h-3.5 w-3.5" />
-                Docs
-              </Button>
-            </Link>
-            <Link href="/account">
-              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
-                <div className="flex items-center justify-center w-5 h-5 rounded-full bg-foreground text-background text-[10px] font-semibold shrink-0">
-                  {currentUser?.name
-                    ? currentUser.name.trim().charAt(0).toUpperCase()
-                    : <UserCircleIcon className="h-3 w-3" />}
-                </div>
-                {currentUser?.name
-                  ? currentUser.name.trim().split(/\s+/)[0]
-                  : "Account"}
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+        </header>
+      )}
 
-      {/* Body */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <div
-          className={`overflow-hidden transition-all duration-200 ${
-            sidebarOpen ? "w-64" : "w-0"
-          }`}
-        >
-          <ChatSidebar
-            activeChatId={activeChatId}
-            chats={savedChats}
-            onSelect={handleSelectChat}
-            onNew={handleNewChat}
-            onDelete={handleDeleteChat}
-          />
-        </div>
-
-        {/* Chat session — key forces full remount on chat switch */}
-        <ChatSession
-          key={chatKey}
-          chatId={activeChatId}
-          preloadedMessages={loadedMessages}
-          onChatSaved={handleChatSaved}
-          onRefreshSidebar={refreshSidebar}
-          pendingConcept={pendingConcept}
-          onPendingConceptConsumed={() => setPendingConcept(null)}
-          savedChats={savedChats}
-          onSelectChat={handleSelectChat}
-          onNewChat={handleNewChat}
-        />
-      </div>
+      {/* Chat session — key forces full remount on chat switch */}
+      <ChatSession
+        key={chatKey}
+        chatId={activeChatId}
+        preloadedMessages={loadedMessages}
+        onChatSaved={handleChatSaved}
+        pendingConcept={pendingConcept}
+        onPendingConceptConsumed={() => setPendingConcept(null)}
+      />
 
       {/* Onboarding modal */}
       <OnboardingModal

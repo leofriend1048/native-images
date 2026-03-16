@@ -1,20 +1,20 @@
 import { nanoid } from "nanoid";
-import { getSession } from "@/lib/auth";
-import { getChatsByUser, upsertChat } from "@/lib/db";
+import { getChatsByUserAndWorkspace, upsertChat } from "@/lib/db";
+import { requireWorkspaceAccess } from "@/lib/workspace";
 
 export async function GET() {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireWorkspaceAccess();
+  if (!ctx) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const chats = await getChatsByUser(session.userId);
+  const chats = await getChatsByUserAndWorkspace(ctx.session.userId, ctx.workspaceId);
   return Response.json({ chats });
 }
 
 export async function POST(req: Request) {
-  const session = await getSession();
-  if (!session) {
+  const ctx = await requireWorkspaceAccess();
+  if (!ctx) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -30,7 +30,8 @@ export async function POST(req: Request) {
 
   await upsertChat({
     id: chatId,
-    user_id: session.userId,
+    user_id: ctx.session.userId,
+    workspace_id: ctx.workspaceId,
     title: title?.slice(0, 120) || "Untitled",
     thumbnail_url: thumbnail_url ?? null,
     messages: JSON.stringify(messages ?? []),

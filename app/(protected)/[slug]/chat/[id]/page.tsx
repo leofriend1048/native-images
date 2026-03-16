@@ -7,14 +7,14 @@ import type { UIMessage } from "ai";
 export default async function ChatByIdPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string; id: string }>;
 }) {
-  const { id } = await params;
+  const { slug, id } = await params;
   const session = await getSession();
   if (!session) redirect("/login");
 
   const chat = await getChatById(id);
-  if (!chat || chat.user_id !== session.userId) redirect("/chat");
+  if (!chat || chat.user_id !== session.userId) redirect(`/${slug}/chat`);
 
   const messages = JSON.parse(chat.messages) as UIMessage[];
 

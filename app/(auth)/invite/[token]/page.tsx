@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle2 } from "lucide-react";
 
 interface PageProps {
@@ -20,6 +21,14 @@ export default function InvitePage({ params }: PageProps) {
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [inviteInfo, setInviteInfo] = useState<{ email: string; workspaceName: string | null; used: boolean } | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/auth/invite?token=${token}`)
+      .then((r) => r.json())
+      .then((data) => { if (!data.error) setInviteInfo(data); })
+      .catch(() => {});
+  }, [token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,7 +100,14 @@ export default function InvitePage({ params }: PageProps) {
             </svg>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">Create your account</h1>
-          <p className="text-sm text-muted-foreground">You&apos;ve been invited to Native Ads</p>
+          <p className="text-sm text-muted-foreground">
+            You&apos;ve been invited to join{" "}
+            {inviteInfo?.workspaceName ? (
+              <Badge variant="secondary" className="text-xs font-semibold">{inviteInfo.workspaceName}</Badge>
+            ) : (
+              "Native Ads"
+            )}
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
