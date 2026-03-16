@@ -186,13 +186,7 @@ function GalleryCard({
           className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
           onClick={() => setFullscreen(false)}
         >
-          <button
-            className="absolute top-4 right-4 text-white/70 hover:text-white"
-            onClick={() => setFullscreen(false)}
-          >
-            <XIcon className="h-6 w-6" />
-          </button>
-          <div className="relative w-full h-full" onClick={(e) => e.stopPropagation()}>
+          <div className="relative w-full h-full">
             <Image
               src={image.url}
               alt={image.prompt}
@@ -202,6 +196,12 @@ function GalleryCard({
               priority
             />
           </div>
+          <button
+            className="absolute top-4 right-4 z-10 flex items-center justify-center w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+            onClick={(e) => { e.stopPropagation(); setFullscreen(false); }}
+          >
+            <XIcon className="h-4 w-4" />
+          </button>
         </div>
       )}
     </>
