@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import Image from "next/image";
-import { Building2, ChevronDown, Copy, ExternalLink, ImageIcon, LayersIcon, Loader2, LogInIcon, Plus, Trash2, Users, X } from "lucide-react";
+import { Building2, ChevronDown, Copy, ExternalLink, EyeIcon, ImageIcon, LayersIcon, Loader2, LogInIcon, Plus, Trash2, Users, X } from "lucide-react";
 
 interface Invite {
   id: string;
@@ -85,6 +86,7 @@ interface AdminClientProps {
 }
 
 export default function AdminClient({ initialUsers, initialInvites, currentWorkspace, allWorkspaces }: AdminClientProps) {
+  const router = useRouter();
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceSummary>(currentWorkspace);
   const [invites, setInvites] = useState<Invite[]>(initialInvites);
   const [users, setUsers] = useState<UserWithStats[]>(initialUsers);
@@ -201,6 +203,29 @@ export default function AdminClient({ initialUsers, initialInvites, currentWorks
     const url = `${window.location.origin}/invite/${token}`;
     navigator.clipboard.writeText(url);
     toast.success("Invite link copied");
+  };
+
+  const [impersonating, setImpersonating] = useState<string | null>(null);
+  const handleImpersonate = async (userId: string) => {
+    setImpersonating(userId);
+    try {
+      const res = await fetch("/api/admin/impersonate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || "Failed to impersonate");
+        return;
+      }
+      // Redirect to target user's workspace
+      router.push(`/${activeWorkspace.slug}/chat`);
+      router.refresh();
+    } catch {
+      toast.error("Something went wrong");
+      setImpersonating(null);
+    }
   };
 
   return (
@@ -388,9 +413,25 @@ export default function AdminClient({ initialUsers, initialInvites, currentWorks
                     <span suppressHydrationWarning>Last active {relativeTime(selectedUser.stats.last_active)}</span>
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setSelectedUser(null)}>
-                  <X className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-xs"
+                    disabled={impersonating === selectedUser.user.id}
+                    onClick={() => handleImpersonate(selectedUser.user.id)}
+                  >
+                    {impersonating === selectedUser.user.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <EyeIcon className="h-3 w-3" />
+                    )}
+                    Login as
+                  </Button>
+                  <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setSelectedUser(null)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-3">

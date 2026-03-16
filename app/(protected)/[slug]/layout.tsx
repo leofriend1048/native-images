@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth";
+import { getSession, getImpersonatorSession } from "@/lib/auth";
 import { getWorkspacesByUserId, getWorkspaceMembership, getUserById, getWorkspaceBySlug, getChatsByUserAndWorkspace } from "@/lib/db";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { ImpersonationBanner } from "@/components/impersonation-banner";
 
 export default async function ProtectedLayout({
   children,
@@ -39,10 +40,18 @@ export default async function ProtectedLayout({
     redirect("/login");
   }
 
-  const [dbUser, recentChats] = await Promise.all([
+  const [dbUser, recentChats, impersonator] = await Promise.all([
     getUserById(session.userId),
     getChatsByUserAndWorkspace(session.userId, workspace.id),
+    getImpersonatorSession(),
   ]);
+
+  // Find the admin's workspace slug for the "Exit" redirect
+  let adminSlug = slug;
+  if (impersonator) {
+    const adminWorkspaces = await getWorkspacesByUserId(impersonator.userId);
+    if (adminWorkspaces.length > 0) adminSlug = adminWorkspaces[0].slug;
+  }
 
   return (
     <SidebarProvider>
@@ -63,6 +72,9 @@ export default async function ProtectedLayout({
         }))}
       />
       <main className="flex-1 flex flex-col min-h-0">
+        {impersonator && (
+          <ImpersonationBanner targetEmail={session.email} adminSlug={adminSlug} />
+        )}
         <div className="md:hidden flex items-center h-10 px-2 border-b shrink-0">
           <SidebarTrigger />
         </div>

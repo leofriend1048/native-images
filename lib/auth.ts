@@ -8,6 +8,7 @@ const SECRET = new TextEncoder().encode(
 
 const COOKIE_NAME = "session";
 const WORKSPACE_COOKIE = "active-workspace";
+const IMPERSONATOR_COOKIE = "impersonator-session";
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
 export interface SessionPayload {
@@ -83,4 +84,55 @@ export async function setActiveWorkspaceCookie(workspaceId: string) {
     maxAge: MAX_AGE,
     path: "/",
   });
+}
+
+// ─── Impersonation ──────────────────────────────────────────────────────────
+
+export async function getImpersonatorSession(): Promise<SessionPayload | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(IMPERSONATOR_COOKIE)?.value;
+  if (!token) return null;
+  return verifyToken(token);
+}
+
+export async function getImpersonatorSessionFromRequest(req: NextRequest): Promise<SessionPayload | null> {
+  const token = req.cookies.get(IMPERSONATOR_COOKIE)?.value;
+  if (!token) return null;
+  return verifyToken(token);
+}
+
+export async function startImpersonation(targetToken: string, adminToken: string) {
+  const cookieStore = await cookies();
+  // Save admin's real session
+  cookieStore.set(IMPERSONATOR_COOKIE, adminToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: MAX_AGE,
+    path: "/",
+  });
+  // Swap to target user's session
+  cookieStore.set(COOKIE_NAME, targetToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: MAX_AGE,
+    path: "/",
+  });
+}
+
+export async function stopImpersonation() {
+  const cookieStore = await cookies();
+  const adminToken = cookieStore.get(IMPERSONATOR_COOKIE)?.value;
+  if (adminToken) {
+    // Restore admin session
+    cookieStore.set(COOKIE_NAME, adminToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: MAX_AGE,
+      path: "/",
+    });
+    cookieStore.delete(IMPERSONATOR_COOKIE);
+  }
 }
