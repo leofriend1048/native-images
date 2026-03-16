@@ -30,20 +30,22 @@ export default async function ProtectedLayout({
     redirect("/login");
   }
 
-  // Verify membership
-  const membership = await getWorkspaceMembership(workspace.id, session.userId);
-  if (!membership) {
-    // Not a member — redirect to their first workspace
+  const [membership, impersonator] = await Promise.all([
+    getWorkspaceMembership(workspace.id, session.userId),
+    getImpersonatorSession(),
+  ]);
+
+  // When impersonating, skip membership check — admin can view any workspace as any user
+  if (!membership && !impersonator) {
     if (workspaces.length > 0) {
       redirect(`/${workspaces[0].slug}/chat`);
     }
     redirect("/login");
   }
 
-  const [dbUser, recentChats, impersonator] = await Promise.all([
+  const [dbUser, recentChats] = await Promise.all([
     getUserById(session.userId),
     getChatsByUserAndWorkspace(session.userId, workspace.id),
-    getImpersonatorSession(),
   ]);
 
   // Find the admin's workspace slug for the "Exit" redirect
@@ -63,7 +65,7 @@ export default async function ProtectedLayout({
           email: session.email,
           isAdmin: session.isAdmin,
         }}
-        workspaceRole={membership.role}
+        workspaceRole={membership?.role ?? "member"}
         initialChats={recentChats.map((c) => ({
           id: c.id,
           title: c.title,
