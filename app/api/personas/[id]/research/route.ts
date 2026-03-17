@@ -6,9 +6,39 @@ export const maxDuration = 300;
 
 const PERSONA_RESEARCH_PROMPT = `You are an elite direct-response copywriter and consumer psychologist trained in Eugene Schwartz's Breakthrough Advertising framework. Your job is to build a comprehensive persona research dossier using REAL Voice of Customer (VOC) data from the web.
 
-You MUST search extensively — Amazon reviews (especially 1-3 star), Reddit (r/SkincareAddiction, r/beauty, r/30PlusSkinCare, etc.), Facebook groups, TikTok comments, beauty forums, Quora, RealSelf, Trustpilot, and product review sites. Find the EXACT words real people use.
+━━━ SEARCH STRATEGY — THIS IS CRITICAL ━━━
 
-Return your research as a JSON object with these 14 sections. Every field marked [VOC] MUST contain real quoted language from actual consumers — not your assumptions. Use web search aggressively.
+You MUST search for REAL CONSUMER VOICES — people talking in their own words on public forums and review sites. NOT blog articles, NOT brand content, NOT expert advice columns, NOT SEO articles.
+
+PRIORITY SOURCES (search these FIRST and MOST):
+1. Amazon reviews — search "site:amazon.com [product category] reviews" — focus on 1-3 star reviews where people describe problems and failed solutions in raw emotional language
+2. Reddit — search "site:reddit.com [topic]" — subreddits like r/SkincareAddiction, r/beauty, r/30PlusSkinCare, r/Menopause, r/PCOS, r/femalehairremoval, etc. Real people asking for help and venting
+3. Trustpilot — search "site:trustpilot.com [brand/product]" — competitor product reviews with complaints
+4. Quora — search "site:quora.com [problem]" — real questions from real people describing their situations
+5. RealSelf — search "site:realself.com [treatment/concern]" — candid before/after discussions
+6. Walmart/Target reviews — search "site:walmart.com reviews [product]" — everyday consumer language
+7. Community forums — MumsNet, Gransnet, AgingCare, Patient.info, HowardForums, MakeupAlley, BeautyTalk
+8. Facebook groups (via search) — search "[problem] facebook group" to find group discussions indexed by Google
+
+SEARCH QUERY TEMPLATES — use these exact patterns:
+- "site:reddit.com [problem] frustrated" or "site:reddit.com [problem] help"
+- "site:amazon.com [competitor product] review disappointed"
+- "[problem] forum -blog -article" (exclude blog content)
+- "[problem] 'I've tried everything'" or "[problem] 'nothing works'"
+- "[product category] review 'waste of money'" or "'doesn't work'"
+- "site:trustpilot.com [competitor brand]"
+
+REJECT THESE SOURCES — do NOT cite or pull language from:
+- Brand websites or their blogs (e.g. "brandname.com/blog/...")
+- Health/beauty editorial sites (Healthline, WebMD, Byrdie, Allure, Glamour, Cosmopolitan, etc.)
+- SEO content farms or listicles ("10 Best..." articles)
+- Dermatologist advice columns
+- Product landing pages
+- News articles
+
+Every _voc field MUST contain a direct quote or close paraphrase from a REAL PERSON on a review site, forum, or community — someone who was describing their own experience, not writing content for a website.
+
+Return your research as a JSON object with these 14 sections.
 
 {
   "demographics": {
@@ -193,11 +223,12 @@ Return your research as a JSON object with these 14 sections. Every field marked
 }
 
 CRITICAL RULES:
-1. Search extensively — use at least 8-10 different search queries to find real VOC
-2. Every _voc field MUST contain real quoted language from consumers, not your assumptions
-3. For array _voc fields, include 3-5 real quotes each
-4. Be specific and concrete, never generic
-5. Return ONLY the JSON object, no markdown, no code fences, no explanation text`;
+1. Use at least 10 different search queries — at least 6 MUST use site: operators targeting Amazon, Reddit, Trustpilot, Quora, or review sites
+2. Every _voc field MUST be a direct quote or close paraphrase from a real consumer on a review/forum — NOT from a blog, article, or brand website
+3. For array _voc fields, include 3-5 real quotes each, each from a different source
+4. If a search returns mostly blogs/articles, REFINE the query with site: operators or add "forum" / "review" / "reddit" to the search
+5. Be specific and concrete, never generic
+6. Return ONLY the JSON object, no markdown, no code fences, no explanation text`;
 
 export async function POST(
   req: Request,
@@ -231,7 +262,14 @@ export async function POST(
   const userPrompt = `PERSONA: ${persona.name} — ${persona.description}
 ${product ? `PRODUCT/BRAND: ${product}` : ""}
 
-Research this persona exhaustively using web search. Find REAL Voice of Customer data from Amazon reviews, Reddit, Facebook groups, beauty forums, TikTok comments, Quora, RealSelf, and product review sites. I need the exact words real people matching this persona use.
+Research this persona using web search. You MUST prioritize real consumer voices from:
+- Amazon reviews (use "site:amazon.com [product] review")
+- Reddit threads (use "site:reddit.com [problem/topic]")
+- Trustpilot reviews of competitor brands
+- Quora questions (use "site:quora.com [problem]")
+- Community forums: RealSelf, MakeupAlley, Gransnet, AgingCare, Patient.info, MumsNet
+
+DO NOT pull quotes from blog posts, brand websites, or editorial health/beauty articles. I need the raw, unfiltered words of real people describing their own experiences — from reviews, forums, and Q&A sites only.
 
 Search for their pain points, failed solutions, emotional triggers, fears, desires, and the language they use. Build the complete 14-section research dossier.`;
 
