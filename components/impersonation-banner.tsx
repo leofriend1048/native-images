@@ -1,11 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { EyeIcon, Loader2 } from "lucide-react";
 
 export function ImpersonationBanner({ targetEmail, adminSlug }: { targetEmail: string; adminSlug: string }) {
-  const router = useRouter();
   const [exiting, setExiting] = useState(false);
 
   const handleExit = async () => {
@@ -13,12 +11,12 @@ export function ImpersonationBanner({ targetEmail, adminSlug }: { targetEmail: s
     try {
       const res = await fetch("/api/admin/impersonate", { method: "DELETE" });
       if (res.ok) {
-        router.push(`/${adminSlug}/admin`);
-        router.refresh();
+        // Hard navigation to pick up the swapped session cookie
+        window.location.href = `/${adminSlug}/admin`;
+        return;
       }
-    } catch {
-      setExiting(false);
-    }
+    } catch {}
+    setExiting(false);
   };
 
   return (

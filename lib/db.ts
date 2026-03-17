@@ -601,18 +601,14 @@ export async function getWorkspaceApiKeys(workspaceId: string): Promise<{
   let replicateApiToken = "";
 
   if (ws.anthropic_api_key_enc) {
-    try { anthropicApiKey = decrypt(ws.anthropic_api_key_enc, ws.encryption_iv ?? ""); } catch {}
+    try { anthropicApiKey = decrypt(ws.anthropic_api_key_enc, ws.encryption_iv ?? ""); } catch (e) {
+      console.error("Failed to decrypt Anthropic API key for workspace", workspaceId, e);
+    }
   }
   if (ws.replicate_api_token_enc) {
-    try { replicateApiToken = decrypt(ws.replicate_api_token_enc, ws.encryption_iv ?? ""); } catch {}
-  }
-
-  // Fall back to environment variables
-  if (!anthropicApiKey && process.env.ANTHROPIC_API_KEY) {
-    anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-  }
-  if (!replicateApiToken && process.env.REPLICATE_API_TOKEN) {
-    replicateApiToken = process.env.REPLICATE_API_TOKEN;
+    try { replicateApiToken = decrypt(ws.replicate_api_token_enc, ws.encryption_iv ?? ""); } catch (e) {
+      console.error("Failed to decrypt Replicate API token for workspace", workspaceId, e);
+    }
   }
 
   return { anthropicApiKey, replicateApiToken };
