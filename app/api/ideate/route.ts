@@ -210,67 +210,6 @@ VOC RESEARCH — when research data is provided in the concept:
 - Translate LANGUAGE into IMAGERY: "I've tried everything" → image of the product graveyard. "Nobody understands" → image of her alone in the bathroom at 2am. "I'm so tired of this" → image of her hand resting on the counter, head slightly bowed, not even looking at the mirror
 - Prefer the UNCOMFORTABLE TRUTH over the COMFORTABLE GENERIC — the image should make the persona feel slightly exposed, like someone saw her private moment`;
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-/** Extract only the VOC-rich fields from the full research JSON to keep the ideation prompt lean. */
-function condensResearch(raw: string): string {
-  try {
-    const d = JSON.parse(raw);
-    const lines: string[] = [];
-    const push = (label: string, v: unknown) => {
-      if (!v) return;
-      if (Array.isArray(v)) { v.filter(Boolean).forEach((s) => lines.push(`${label}: ${s}`)); }
-      else lines.push(`${label}: ${v}`);
-    };
-    // Pain & mirror moments
-    push("Pain (her words)", d.pain_architecture?.problem_in_her_words_voc);
-    push("Her word for it", d.pain_architecture?.her_word_for_it_voc);
-    push("Mirror moment", d.pain_architecture?.mirror_moment_voc);
-    push("Mirror details", d.pain_architecture?.mirror_moment_details);
-    push("Coping self-talk", d.pain_architecture?.coping_self_talk_voc);
-    push("Primary emotion", d.pain_architecture?.primary_emotion_voc);
-    push("Self-perception", d.pain_architecture?.self_perception_voc);
-    push("Avoidance", d.pain_architecture?.avoidance_behaviors_voc);
-    push("Physical sign", d.pain_architecture?.physical_manifestations_voc);
-    push("Social avoidance", d.pain_architecture?.social_avoidance_voc);
-    push("Daily impact", d.pain_architecture?.daily_routine_impact_voc);
-    push("Hiding/compensating", d.pain_architecture?.hiding_compensating_voc);
-    // Desires
-    push("Surface desire", d.desire_mapping?.surface_desire_voc);
-    push("Core desire", d.desire_mapping?.core_desire);
-    push("Primary desire", d.desire_mapping?.primary_desire);
-    // Failed solutions
-    push("Tried", d.failed_solutions?.tried_list_voc);
-    push("Why failed", d.failed_solutions?.why_each_failed_voc);
-    push("Dismissal trigger", d.failed_solutions?.instant_dismissal_triggers_voc);
-    // Fear
-    push("Fear trying again", d.fear_mapping?.fear_of_trying_again_voc);
-    push("Fear wasted money", d.fear_mapping?.fear_of_wasting_money_voc);
-    push("Fear won't work", d.fear_mapping?.fear_wont_work_for_me_voc);
-    push("Nightmare future", d.fear_mapping?.nightmare_future_voc);
-    // Desire outcomes
-    push("7-day hope", d.desire_outcomes?.immediate_7_day_voc);
-    push("First time it works", d.desire_outcomes?.first_time_it_works_voc);
-    push("Feeling like herself", d.desire_outcomes?.feeling_like_herself_voc);
-    // Language
-    push("Problem word", d.language_and_voice?.problem_words_voc);
-    push("Gets-me phrase", d.language_and_voice?.gets_me_phrases_voc);
-    push("Lowest moment", d.language_and_voice?.lowest_moment_self_talk_voc);
-    // Identity
-    push("Before identity", d.psychological_elements?.identifications?.before_identity_voc);
-    push("After identity", d.psychological_elements?.identifications?.after_identity_voc);
-    push("Shadow identity", d.psychological_elements?.identifications?.shadow_identity_voc);
-    // Demographics (brief)
-    if (d.demographics) {
-      lines.unshift(`Persona: ${d.demographics.age_range ?? ""} ${d.demographics.gender ?? ""}, ${d.demographics.life_stage ?? ""}, ${d.demographics.geography ?? ""}`);
-    }
-    return lines.join("\n");
-  } catch {
-    // If not JSON, pass through as-is but truncate
-    return raw.slice(0, 3000);
-  }
-}
-
 // ─── Route ───────────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
@@ -301,10 +240,9 @@ export async function POST(req: Request) {
     ? `${concept}\n\nConfirmed context:\n${Object.entries(answers).map(([k, v]) => `${k}: ${v}`).join("\n")}`
     : concept;
 
-  // Append condensed VOC research if available
+  // Append VOC research if available
   if (research) {
-    const condensed = condensResearch(research);
-    contextPrompt += `\n\n━━━ VOC RESEARCH (real customer language — use these exact words and scenarios) ━━━\n${condensed}`;
+    contextPrompt += `\n\n━━━ VOC RESEARCH (real customer language — use these exact words and scenarios) ━━━\n${research}`;
   }
 
   // ── Step 1: clarification check ──────────────────────────────────────────────
