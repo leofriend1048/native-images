@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { BackButton } from "./back-button";
 
 const nav = [
   { href: "/docs", label: "Overview" },
@@ -21,13 +22,7 @@ export default function DocsLayout({
       {/* Top bar */}
       <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-6">
-          <Link
-            href="/chat"
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to app
-          </Link>
+          <BackButton />
           <span className="text-border">|</span>
           <span className="text-sm font-semibold">Documentation</span>
         </div>
