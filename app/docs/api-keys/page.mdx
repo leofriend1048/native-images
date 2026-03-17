@@ -1,0 +1,91 @@
+# Connecting Your API Keys
+
+The system requires two API keys to function: one from **Anthropic** (powers the AI ideation and persona research) and one from **Replicate** (powers image generation). Both are entered in your workspace settings and encrypted at rest.
+
+---
+
+## Anthropic API Key
+
+Anthropic's Claude powers the ideation engine, prompt rewriting, and persona research.
+
+### Step 1: Create an Anthropic account
+
+Go to [console.anthropic.com](https://console.anthropic.com) and sign up (or sign in if you already have an account).
+
+### Step 2: Add billing
+
+From the console, navigate to **Settings → Billing** and add a payment method. Anthropic requires active billing before API keys will work. New accounts typically start on the free tier with a small credit, but you'll want a payment method on file for uninterrupted use.
+
+### Step 3: Generate an API key
+
+1. In the Anthropic console, go to **Settings → API Keys**
+2. Click **Create Key**
+3. Give it a name (e.g. "Native Images")
+4. Copy the key — it starts with `sk-ant-`
+
+> **Important:** You can only see the full key once. Copy it immediately.
+
+### Step 4: Enter it in your workspace
+
+1. Open your workspace in the app
+2. Go to **Settings** (in the sidebar)
+3. Paste your key into the **Anthropic API Key** field
+4. Click **Save**
+
+### Rate limits
+
+Anthropic applies per-organization rate limits based on your usage tier. If you see rate limit errors during persona research, wait 60 seconds and retry. For higher limits, you can request a tier upgrade from the [Anthropic console](https://console.anthropic.com).
+
+---
+
+## Replicate API Token
+
+Replicate hosts the image generation models (including Nano Banana Pro for resizing and variations).
+
+### Step 1: Create a Replicate account
+
+Go to [replicate.com](https://replicate.com) and sign up with GitHub or email.
+
+### Step 2: Add billing
+
+Navigate to **Account → Billing** and add a payment method. Replicate charges per-prediction — image generation typically costs a few cents per image. You can set a monthly spending limit to avoid surprises.
+
+### Step 3: Copy your API token
+
+1. Go to [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens)
+2. Your default token is shown, or create a new one
+3. Copy the token — it starts with `r8_`
+
+### Step 4: Enter it in your workspace
+
+1. Open your workspace in the app
+2. Go to **Settings** (in the sidebar)
+3. Paste your token into the **Replicate API Token** field
+4. Click **Save**
+
+---
+
+## Verifying your keys
+
+After saving both keys, go to the **Chat** page and try generating an image. If either key is missing or invalid, you'll see a specific error message telling you which one to check.
+
+## Security
+
+Your API keys are encrypted before being stored in the database. They are never exposed to the frontend or included in API responses — only used server-side when making calls to Anthropic and Replicate on your behalf.
+
+## Troubleshooting
+
+**"Anthropic API key not configured"**
+Check Settings — make sure the key is saved and starts with `sk-ant-`.
+
+**"Replicate API key not configured"**
+Check Settings — make sure the token is saved and starts with `r8_`.
+
+**Rate limit errors during research**
+Wait 60 seconds and retry, or upgrade your Anthropic usage tier.
+
+**Images fail to generate**
+Verify your Replicate billing is active and you haven't hit your spending limit.
+
+**Keys not persisting after deploy**
+Keys are stored in the database per-workspace — they persist across deploys. If they're not working, re-enter them in Settings.

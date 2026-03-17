@@ -11,6 +11,7 @@ import {
   Settings,
   LogOut,
   User,
+  BookOpen,
 } from "lucide-react";
 import {
   Sidebar,
@@ -164,6 +165,12 @@ export function AppSidebar({ workspaces, activeWorkspaceSlug, user, workspaceRol
                   <Link href={`${base}/account`} className="gap-2">
                     <User className="h-4 w-4" />
                     Account
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="cursor-pointer">
+                  <Link href="/docs" className="gap-2">
+                    <BookOpen className="h-4 w-4" />
+                    Documentation
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

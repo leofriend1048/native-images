@@ -8,6 +8,7 @@ const nav = [
   { href: "/docs/best-inputs", label: "Getting the Best Results" },
   { href: "/docs/creative-strategy", label: "Creative Strategy" },
   { href: "/docs/access", label: "Access & Team Management" },
+  { href: "/docs/api-keys", label: "API Keys Setup" },
 ];
 
 export default function DocsLayout({
