@@ -607,6 +607,14 @@ export async function getWorkspaceApiKeys(workspaceId: string): Promise<{
     try { replicateApiToken = decrypt(ws.replicate_api_token_enc, ws.encryption_iv ?? ""); } catch {}
   }
 
+  // Fall back to environment variables
+  if (!anthropicApiKey && process.env.ANTHROPIC_API_KEY) {
+    anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+  }
+  if (!replicateApiToken && process.env.REPLICATE_API_TOKEN) {
+    replicateApiToken = process.env.REPLICATE_API_TOKEN;
+  }
+
   return { anthropicApiKey, replicateApiToken };
 }
 
