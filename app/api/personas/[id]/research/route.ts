@@ -275,23 +275,63 @@ Search for their pain points, failed solutions, emotional triggers, fears, desir
       throw new Error("Research did not complete after maximum turns");
     }
 
+    // Collect citations from all turns — web search results contain URLs
+    const citations: { url: string; title: string }[] = [];
+    for (const msg of messages) {
+      if (msg.role !== "assistant" || !Array.isArray(msg.content)) continue;
+      for (const block of msg.content) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const b = block as any;
+        if (b.type === "web_search_tool_result" && Array.isArray(b.content)) {
+          for (const r of b.content) {
+            if (r.type === "web_search_result" && r.url) {
+              citations.push({ url: r.url, title: r.title ?? "" });
+            }
+          }
+        }
+      }
+    }
+    // Also check the final response
+    for (const block of finalResponse.content) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const b = block as any;
+      if (b.type === "web_search_tool_result" && Array.isArray(b.content)) {
+        for (const r of b.content) {
+          if (r.type === "web_search_result" && r.url) {
+            citations.push({ url: r.url, title: r.title ?? "" });
+          }
+        }
+      }
+    }
+
+    // Deduplicate citations by URL
+    const seen = new Set<string>();
+    const uniqueCitations = citations.filter((c) => {
+      if (seen.has(c.url)) return false;
+      seen.add(c.url);
+      return true;
+    });
+
     // Extract the text content
     const textBlocks = finalResponse.content.filter(
       (block): block is Anthropic.TextBlock => block.type === "text"
     );
     const rawText = textBlocks.map((b) => b.text).join("\n\n");
 
-    // Try to parse as JSON, clean up if needed
-    let research = rawText;
+    // Try to parse as JSON, attach sources
+    let research: string;
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       try {
         const parsed = JSON.parse(jsonMatch[0]);
+        parsed._sources = uniqueCitations;
+        parsed._search_count = uniqueCitations.length;
         research = JSON.stringify(parsed);
       } catch {
-        // Store raw text if JSON parsing fails
         research = rawText;
       }
+    } else {
+      research = rawText;
     }
 
     await updatePersonaResearch(id, research, "complete");

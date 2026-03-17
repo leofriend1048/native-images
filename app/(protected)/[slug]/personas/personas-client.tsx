@@ -59,13 +59,15 @@ function relativeTime(dateStr: string): string {
   return new Date(utc).toLocaleDateString();
 }
 
-function getSectionCount(research: string | null): number {
-  if (!research) return 0;
+function getResearchMeta(research: string | null): { sections: number; sources: number } {
+  if (!research) return { sections: 0, sources: 0 };
   try {
     const data = JSON.parse(research);
-    return Object.keys(data).filter((k) => data[k] && typeof data[k] === "object").length;
+    const sections = Object.keys(data).filter((k) => !k.startsWith("_") && data[k] && typeof data[k] === "object").length;
+    const sources = data._search_count ?? data._sources?.length ?? 0;
+    return { sections, sources };
   } catch {
-    return 0;
+    return { sections: 0, sources: 0 };
   }
 }
 
@@ -204,9 +206,13 @@ export default function PersonasClient({ initialPersonas }: { initialPersonas: P
                 transition={{ delay: 0.15, duration: 0.3 }}
                 className="mt-6 flex items-center gap-6 text-xs text-muted-foreground"
               >
-                <QuickStat label="Sections" value={`${getSectionCount(viewingPersona.research)}`} />
-                <QuickStat label="Status" value="Complete" />
-                <QuickStat label="Created" value={relativeTime(viewingPersona.created_at)} />
+                {(() => { const m = getResearchMeta(viewingPersona.research); return (
+                  <>
+                    <QuickStat label="Sections" value={`${m.sections}`} />
+                    {m.sources > 0 && <QuickStat label="Sources" value={`${m.sources}`} />}
+                    <QuickStat label="Created" value={relativeTime(viewingPersona.created_at)} />
+                  </>
+                ); })()}
               </motion.div>
             )}
           </motion.div>
@@ -368,7 +374,7 @@ function PersonaCard({
   const isComplete = persona.research_status === "complete";
   const isResearching = persona.research_status === "researching";
   const isFailed = persona.research_status === "failed";
-  const sections = getSectionCount(persona.research);
+  const meta = getResearchMeta(persona.research);
 
   return (
     <button
@@ -404,8 +410,8 @@ function PersonaCard({
               <ClockIcon className="h-3 w-3" />
               {relativeTime(persona.created_at)}
             </span>
-            {isComplete && sections > 0 && (
-              <span>{sections} sections</span>
+            {isComplete && meta.sections > 0 && (
+              <span>{meta.sections} sections{meta.sources > 0 ? ` / ${meta.sources} sources` : ""}</span>
             )}
           </div>
         </div>

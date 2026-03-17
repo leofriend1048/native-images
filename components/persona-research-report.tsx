@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ChevronDownIcon, QuoteIcon, SearchIcon, Loader2, RefreshCwIcon } from "lucide-react";
+import { ChevronDownIcon, QuoteIcon, SearchIcon, Loader2, RefreshCwIcon, ExternalLinkIcon, GlobeIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -188,6 +188,8 @@ interface PersonaResearch {
     white_space: string;
     genuinely_new_angle: string;
   };
+  _sources?: { url: string; title: string }[];
+  _search_count?: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -588,6 +590,40 @@ export function PersonaResearchReport({
         <Field label="White Space" value={data.market_competition?.white_space} />
         <Field label="New Angle" value={data.market_competition?.genuinely_new_angle} />
       </Section>
+
+      {/* Sources */}
+      {data._sources && data._sources.length > 0 && (
+        <div className="border-t border-border/40 pt-5 mt-1">
+          <div className="flex items-center gap-2 mb-3">
+            <GlobeIcon className="h-3.5 w-3.5 text-muted-foreground/50" />
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold">
+              Sources ({data._sources.length})
+            </span>
+          </div>
+          <div className="grid gap-1.5">
+            {data._sources.map((src, i) => {
+              let domain = "";
+              try { domain = new URL(src.url).hostname.replace("www.", ""); } catch {}
+              return (
+                <a
+                  key={i}
+                  href={src.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 py-1.5 px-2.5 rounded-lg hover:bg-accent/30 transition-colors group"
+                >
+                  <span className="text-[10px] text-muted-foreground/40 tabular-nums w-5 shrink-0">{i + 1}</span>
+                  <span className="text-xs text-foreground/70 truncate flex-1 group-hover:text-foreground transition-colors">
+                    {src.title || domain}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground/40 shrink-0 hidden sm:inline">{domain}</span>
+                  <ExternalLinkIcon className="h-3 w-3 text-muted-foreground/30 shrink-0 group-hover:text-muted-foreground transition-colors" />
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
