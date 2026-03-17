@@ -13,7 +13,8 @@ import {
   SearchIcon,
   AlertCircleIcon,
   CheckCircle2Icon,
-  ClockIcon,
+  GlobeIcon,
+  FileTextIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,17 +47,13 @@ interface Persona {
   created_at: string;
 }
 
-function relativeTime(dateStr: string): string {
+function formatDate(dateStr: string): string {
   const utc = dateStr.includes("T") ? dateStr : dateStr.replace(" ", "T") + "Z";
-  const ms = Date.now() - new Date(utc).getTime();
-  const mins = Math.floor(ms / 60_000);
-  const hours = Math.floor(mins / 60);
-  const days = Math.floor(hours / 24);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  if (days < 7) return `${days}d ago`;
-  return new Date(utc).toLocaleDateString();
+  return new Date(utc).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 function getResearchMeta(research: string | null): { sections: number; sources: number } {
@@ -140,26 +137,28 @@ export default function PersonasClient({ initialPersonas }: { initialPersonas: P
     toast.success("Persona deleted");
   }, [viewingId]);
 
-  // ── Detail view ────────────────────────────────────────────────────────────
+  // ── Dossier detail view ────────────────────────────────────────────────────
   if (viewingPersona) {
+    const meta = getResearchMeta(viewingPersona.research);
+
     return (
       <div className="flex-1 overflow-y-auto">
-        {/* Sticky header */}
-        <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b">
-          <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
+        {/* Minimal nav bar */}
+        <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-border/50">
+          <div className="max-w-3xl mx-auto px-8 h-12 flex items-center justify-between">
             <button
               onClick={() => setViewingId(null)}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              <ChevronLeftIcon className="h-4 w-4" />
-              All Personas
+              <ChevronLeftIcon className="h-3.5 w-3.5" />
+              Personas
             </button>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               {viewingPersona.research_status === "complete" && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-xs h-7 gap-1.5"
+                  className="text-xs h-7 gap-1.5 text-muted-foreground"
                   onClick={() => triggerResearch(viewingPersona.id)}
                 >
                   <RefreshCwIcon className="h-3 w-3" />
@@ -178,51 +177,64 @@ export default function PersonasClient({ initialPersonas }: { initialPersonas: P
           </div>
         </div>
 
-        <div className="max-w-4xl mx-auto px-6">
-          {/* Hero section */}
+        <div className="max-w-3xl mx-auto px-8">
+          {/* Report masthead */}
           <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="pt-8 pb-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
+            className="pt-12 pb-10"
           >
-            <div className="flex items-start gap-4">
-              <div className="w-11 h-11 rounded-xl bg-foreground/[0.04] border border-border/60 flex items-center justify-center shrink-0">
-                <span className="text-lg font-semibold text-foreground/60">
-                  {viewingPersona.name.charAt(0).toUpperCase()}
+            <div className="space-y-6">
+              {/* Eyebrow */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/50">
+                  Research Dossier
                 </span>
+                {viewingPersona.research_status === "complete" && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                )}
               </div>
-              <div className="flex-1 min-w-0">
-                <h1 className="text-2xl font-semibold tracking-tight">{viewingPersona.name}</h1>
-                <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{viewingPersona.description}</p>
-              </div>
+
+              {/* Title */}
+              <h1 className="text-4xl font-semibold tracking-tight leading-[1.1]">
+                {viewingPersona.name}
+              </h1>
+
+              {/* Description */}
+              <p className="text-base text-muted-foreground leading-relaxed max-w-xl">
+                {viewingPersona.description}
+              </p>
+
+              {/* Meta strip */}
+              {viewingPersona.research_status === "complete" && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2, duration: 0.3 }}
+                  className="flex items-center gap-5 pt-2"
+                >
+                  <MetaChip icon={<FileTextIcon className="h-3 w-3" />} value={`${meta.sections} sections`} />
+                  {meta.sources > 0 && (
+                    <MetaChip icon={<GlobeIcon className="h-3 w-3" />} value={`${meta.sources} sources`} />
+                  )}
+                  <span className="text-[11px] text-muted-foreground/40">
+                    {formatDate(viewingPersona.created_at)}
+                  </span>
+                </motion.div>
+              )}
             </div>
 
-            {/* Quick stats bar */}
-            {viewingPersona.research_status === "complete" && viewingPersona.research && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.15, duration: 0.3 }}
-                className="mt-6 flex items-center gap-6 text-xs text-muted-foreground"
-              >
-                {(() => { const m = getResearchMeta(viewingPersona.research); return (
-                  <>
-                    <QuickStat label="Sections" value={`${m.sections}`} />
-                    {m.sources > 0 && <QuickStat label="Sources" value={`${m.sources}`} />}
-                    <QuickStat label="Created" value={relativeTime(viewingPersona.created_at)} />
-                  </>
-                ); })()}
-              </motion.div>
-            )}
+            {/* Divider */}
+            <div className="mt-10 h-px bg-border/60" />
           </motion.div>
 
-          {/* Report */}
+          {/* Report body */}
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1, duration: 0.35 }}
-            className="pb-12"
+            transition={{ delay: 0.15, duration: 0.4 }}
+            className="pb-20"
           >
             <PersonaResearchReport
               research={viewingPersona.research}
@@ -240,88 +252,93 @@ export default function PersonasClient({ initialPersonas }: { initialPersonas: P
   // ── List view ──────────────────────────────────────────────────────────────
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="max-w-4xl mx-auto px-6 pt-8 pb-12">
+      <div className="max-w-3xl mx-auto px-8 pt-12 pb-16">
         {/* Header */}
-        <div className="flex items-end justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Personas</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Deep audience research dossiers powered by web intelligence
-            </p>
-          </div>
+        <div className="mb-10">
+          <div className="flex items-end justify-between">
+            <div>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/50 block mb-3">
+                Audience Research
+              </span>
+              <h1 className="text-3xl font-semibold tracking-tight">Personas</h1>
+            </div>
 
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-1.5">
-                <PlusIcon className="h-3.5 w-3.5" />
-                New Persona
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create Persona</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-2">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Name</label>
-                  <Input
-                    placeholder="e.g. Acne-prone millennial mom"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Description</label>
-                  <Textarea
-                    placeholder="Describe who this persona is and what they care about..."
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={3}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">
-                    Product context
-                    <span className="text-muted-foreground/50 ml-1 font-normal">optional</span>
-                  </label>
-                  <Input
-                    placeholder="e.g. Anti-aging serum, Organic dog food..."
-                    value={product}
-                    onChange={(e) => setProduct(e.target.value)}
-                  />
-                </div>
-                <Button
-                  onClick={handleCreate}
-                  disabled={!name.trim() || !description.trim() || saving}
-                  className="w-full"
-                >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <SearchIcon className="h-4 w-4 mr-1.5" />}
-                  Create & Research
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="gap-1.5 h-8">
+                  <PlusIcon className="h-3.5 w-3.5" />
+                  New Persona
                 </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create Persona</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Name</label>
+                    <Input
+                      placeholder="e.g. Acne-prone millennial mom"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Description</label>
+                    <Textarea
+                      placeholder="Describe who this persona is and what they care about..."
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">
+                      Product context
+                      <span className="text-muted-foreground/40 ml-1 font-normal">optional</span>
+                    </label>
+                    <Input
+                      placeholder="e.g. Anti-aging serum, Organic dog food..."
+                      value={product}
+                      onChange={(e) => setProduct(e.target.value)}
+                    />
+                  </div>
+                  <Button
+                    onClick={handleCreate}
+                    disabled={!name.trim() || !description.trim() || saving}
+                    className="w-full"
+                  >
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <SearchIcon className="h-4 w-4 mr-1.5" />}
+                    Create & Research
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+          <p className="text-sm text-muted-foreground mt-2 max-w-md">
+            Deep audience research dossiers built from real consumer language across the web.
+          </p>
         </div>
 
         {/* Cards */}
         {personas.length === 0 ? (
           <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
-            className="border border-dashed rounded-xl py-20 flex flex-col items-center justify-center text-center"
+            className="py-24 flex flex-col items-center justify-center text-center"
           >
-            <div className="w-12 h-12 rounded-xl bg-foreground/[0.03] border border-border/60 flex items-center justify-center mb-4">
-              <SearchIcon className="h-5 w-5 text-muted-foreground/40" />
+            <div className="w-14 h-14 rounded-2xl bg-foreground/[0.03] flex items-center justify-center mb-5">
+              <SearchIcon className="h-6 w-6 text-muted-foreground/30" />
             </div>
-            <p className="text-sm font-medium text-foreground/70">No personas yet</p>
-            <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+            <p className="text-sm font-medium text-foreground/60">No personas yet</p>
+            <p className="text-xs text-muted-foreground/50 mt-1.5 max-w-xs leading-relaxed">
               Create a persona to generate a comprehensive research dossier with real consumer language
             </p>
             <Button
               size="sm"
               variant="outline"
-              className="mt-5 gap-1.5"
+              className="mt-6 gap-1.5"
               onClick={() => setCreateOpen(true)}
             >
               <PlusIcon className="h-3.5 w-3.5" />
@@ -329,18 +346,18 @@ export default function PersonasClient({ initialPersonas }: { initialPersonas: P
             </Button>
           </motion.div>
         ) : (
-          <div className="grid gap-3">
+          <div className="space-y-0 divide-y divide-border/50">
             <AnimatePresence mode="popLayout">
               {personas.map((p, i) => (
                 <motion.div
                   key={p.id}
                   layout
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.97 }}
-                  transition={{ duration: 0.25, delay: i * 0.03 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25, delay: i * 0.04 }}
                 >
-                  <PersonaCard
+                  <PersonaRow
                     persona={p}
                     onView={() => setViewingId(p.id)}
                     onDelete={() => setDeleteId(p.id)}
@@ -358,9 +375,9 @@ export default function PersonasClient({ initialPersonas }: { initialPersonas: P
   );
 }
 
-// ─── Card ──────────────────────────────────────────────────────────────────────
+// ─── Row ───────────────────────────────────────────────────────────────────────
 
-function PersonaCard({
+function PersonaRow({
   persona,
   onView,
   onDelete,
@@ -379,110 +396,78 @@ function PersonaCard({
   return (
     <button
       onClick={onView}
-      className="w-full text-left rounded-xl border bg-card hover:bg-accent/30 transition-all duration-200 group relative overflow-hidden"
+      className="w-full text-left py-5 group relative flex items-center gap-5 hover:bg-accent/20 -mx-3 px-3 rounded-lg transition-colors"
     >
-      {/* Researching shimmer */}
-      {isResearching && (
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-foreground/[0.03] to-transparent" />
-        </div>
-      )}
+      {/* Left: initial */}
+      <div className="w-10 h-10 rounded-full bg-foreground/[0.05] flex items-center justify-center shrink-0">
+        <span className="text-sm font-semibold text-foreground/40 group-hover:text-foreground/60 transition-colors">
+          {persona.name.charAt(0).toUpperCase()}
+        </span>
+      </div>
 
-      <div className="p-5 flex items-start gap-4">
-        {/* Avatar */}
-        <div className="w-10 h-10 rounded-lg bg-foreground/[0.04] border border-border/60 flex items-center justify-center shrink-0 group-hover:border-border transition-colors">
-          <span className="text-base font-semibold text-foreground/50 group-hover:text-foreground/70 transition-colors">
-            {persona.name.charAt(0).toUpperCase()}
+      {/* Center: content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2.5">
+          <h3 className="text-sm font-medium truncate">{persona.name}</h3>
+          <StatusDot status={persona.research_status} />
+        </div>
+        <p className="text-xs text-muted-foreground/60 line-clamp-1 mt-0.5">{persona.description}</p>
+      </div>
+
+      {/* Right: meta + actions */}
+      <div className="flex items-center gap-3 shrink-0">
+        {isComplete && meta.sources > 0 && (
+          <span className="text-[11px] text-muted-foreground/40 hidden sm:block">
+            {meta.sources} sources
           </span>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2.5 mb-1">
-            <h3 className="text-sm font-medium truncate">{persona.name}</h3>
-            <StatusPill status={persona.research_status} />
-          </div>
-          <p className="text-xs text-muted-foreground line-clamp-1 leading-relaxed">{persona.description}</p>
-
-          {/* Meta row */}
-          <div className="flex items-center gap-4 mt-2.5 text-[11px] text-muted-foreground/60">
-            <span className="flex items-center gap-1">
-              <ClockIcon className="h-3 w-3" />
-              {relativeTime(persona.created_at)}
-            </span>
-            {isComplete && meta.sections > 0 && (
-              <span>{meta.sections} sections{meta.sources > 0 ? ` / ${meta.sources} sources` : ""}</span>
-            )}
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center gap-1 shrink-0 self-center">
-          {isFailed && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-foreground"
-              onClick={(e) => { e.stopPropagation(); onRegenerate(); }}
-            >
-              <RefreshCwIcon className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
-            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+        )}
+        {isResearching && (
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground/40" />
+        )}
+        {isFailed && (
+          <button
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            onClick={(e) => { e.stopPropagation(); onRegenerate(); }}
           >
-            <TrashIcon className="h-3.5 w-3.5" />
-          </Button>
-          <ArrowRightIcon className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground/60 group-hover:translate-x-0.5 transition-all" />
-        </div>
+            Retry
+          </button>
+        )}
+        <span className="text-[11px] text-muted-foreground/30 hidden sm:block">
+          {formatDate(persona.created_at)}
+        </span>
+        <button
+          className="opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-destructive transition-all"
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+        >
+          <TrashIcon className="h-3.5 w-3.5" />
+        </button>
+        <ArrowRightIcon className="h-3.5 w-3.5 text-muted-foreground/20 group-hover:text-muted-foreground/50 group-hover:translate-x-0.5 transition-all" />
       </div>
     </button>
   );
 }
 
-// ─── Helpers ───────────────────────────────────────────────────────────────────
+// ─── Small components ──────────────────────────────────────────────────────────
 
-function StatusPill({ status }: { status: string }) {
+function StatusDot({ status }: { status: string }) {
   switch (status) {
     case "complete":
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-          <CheckCircle2Icon className="h-3 w-3" />
-          Researched
-        </span>
-      );
+      return <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />;
     case "researching":
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-foreground/5 text-muted-foreground">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          Researching
-        </span>
-      );
+      return <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />;
     case "failed":
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-destructive/10 text-destructive">
-          <AlertCircleIcon className="h-3 w-3" />
-          Failed
-        </span>
-      );
+      return <span className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0" />;
     default:
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-foreground/5 text-muted-foreground/60">
-          Pending
-        </span>
-      );
+      return <span className="w-1.5 h-1.5 rounded-full bg-foreground/15 shrink-0" />;
   }
 }
 
-function QuickStat({ label, value }: { label: string; value: string }) {
+function MetaChip({ icon, value }: { icon: React.ReactNode; value: string }) {
   return (
-    <div className="flex items-center gap-1.5">
-      <span className="text-muted-foreground/50">{label}</span>
-      <span className="text-foreground/70 font-medium">{value}</span>
-    </div>
+    <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/50">
+      {icon}
+      {value}
+    </span>
   );
 }
 
