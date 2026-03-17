@@ -208,7 +208,7 @@ interface IdeationResult {
 
 type IdeationResponse = IdeationResult | ClarificationResult;
 
-type Phase = "idle" | "ideating" | "clarifying" | "awaiting" | "generating";
+type Phase = "idle" | "ideating" | "researching" | "clarifying" | "awaiting" | "generating";
 
 interface Persona {
   id: string;
@@ -956,11 +956,13 @@ function IdeationPanel({
   ideation,
   onGenerate,
   onAddToQueue,
+  isResearching,
 }: {
   concept: string;
   ideation: IdeationResult | null;
   onGenerate: (prompt: string) => void;
   onAddToQueue: (prompt: string) => void;
+  isResearching?: boolean;
 }) {
   if (!ideation) {
     return (
@@ -969,7 +971,9 @@ function IdeationPanel({
           <MessageContent>{concept}</MessageContent>
         </Message>
         <div className="flex items-center gap-2 py-2">
-          <Shimmer className="h-5 w-52 rounded-md text-xs px-2">{"Ideating concepts…"}</Shimmer>
+          <Shimmer className="h-5 w-52 rounded-md text-xs px-2">
+            {isResearching ? "Researching audience…" : "Ideating concepts…"}
+          </Shimmer>
         </div>
       </div>
     );
@@ -1089,6 +1093,7 @@ function ChatSession({
   const [currentConcept, setCurrentConcept] = useState("");
   const [ideation, setIdeation] = useState<IdeationResult | null>(null);
   const [clarification, setClarification] = useState<ClarificationResult | null>(null);
+  const [researchData, setResearchData] = useState<string | null>(null);
   const [queue, setQueue] = useState<{ prompt: string; ratioOverride?: string }[]>([]);
 
   // (selectedRatios removed — single-select only now via settings.aspect_ratio)
@@ -1364,12 +1369,13 @@ function ChatSession({
 
   // Fetches /api/ideate and handles both the clarification and ideation paths.
   // Pass `answers` when re-running after the user has answered clarifying questions.
+  // When answers are provided (post-clarification), runs VOC research first.
   const runIdeation = useCallback(
     async (concept: string, answers?: Record<string, string>) => {
       setCurrentConcept(concept);
       setIdeation(null);
       setClarification(null);
-      setPhase("ideating");
+      setResearchData(null);
 
       const abortController = new AbortController();
       ideationAbortRef.current = abortController;
@@ -1380,10 +1386,62 @@ function ChatSession({
         : concept;
 
       try {
+        // Step 1: If no answers yet, run clarification first
+        if (answers === undefined) {
+          setPhase("ideating");
+          const res = await fetch("/api/ideate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ concept: enrichedConcept }),
+            signal: abortController.signal,
+          });
+          if (!res.ok) throw new Error("Ideation failed");
+          const result: IdeationResponse = await res.json();
+
+          if (result.type === "clarify") {
+            setClarification(result);
+            setPhase("clarifying");
+            return;
+          }
+          // No clarification needed — skip research for simple concepts
+          setIdeation(result);
+          setPhase("awaiting");
+          return;
+        }
+
+        // Step 2: Answers provided — run VOC research, then ideate
+        setPhase("researching");
+
+        // Extract product/persona/angle from answers for targeted research
+        const answerValues = Object.values(answers);
+        const product = answerValues[0] || concept;
+        const persona = answerValues[1] || (activePersona?.description ?? "");
+        const angle = answerValues[2] || "";
+
+        let research: string | null = null;
+        try {
+          const researchRes = await fetch("/api/research", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ product, persona, angle }),
+            signal: abortController.signal,
+          });
+          if (researchRes.ok) {
+            const researchResult = await researchRes.json();
+            research = researchResult.research;
+            setResearchData(research);
+          }
+        } catch (researchErr) {
+          if ((researchErr as Error).name === "AbortError") return;
+          console.warn("Research failed, proceeding without VOC data:", researchErr);
+        }
+
+        // Step 3: Run ideation with research data
+        setPhase("ideating");
         const res = await fetch("/api/ideate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ concept: enrichedConcept, answers }),
+          body: JSON.stringify({ concept: enrichedConcept, answers, research }),
           signal: abortController.signal,
         });
         if (!res.ok) throw new Error("Ideation failed");
@@ -1543,12 +1601,13 @@ function ChatSession({
                     onSubmit={handleClarificationSubmit}
                   />
                 )}
-                {messages.length === 0 && (phase === "ideating" || phase === "awaiting") && (
+                {messages.length === 0 && (phase === "researching" || phase === "ideating" || phase === "awaiting") && (
                   <IdeationPanel
                     concept={currentConcept}
                     ideation={ideation}
                     onGenerate={triggerGenerationWithCrops}
                     onAddToQueue={handleAddToQueue}
+                    isResearching={phase === "researching"}
                   />
                 )}
 
@@ -1689,12 +1748,13 @@ function ChatSession({
                     onSubmit={handleClarificationSubmit}
                   />
                 )}
-                {messages.length > 0 && (phase === "ideating" || phase === "awaiting") && (
+                {messages.length > 0 && (phase === "researching" || phase === "ideating" || phase === "awaiting") && (
                   <IdeationPanel
                     concept={currentConcept}
                     ideation={ideation}
                     onGenerate={triggerGenerationWithCrops}
                     onAddToQueue={handleAddToQueue}
+                    isResearching={phase === "researching"}
                   />
                 )}
 
@@ -2140,7 +2200,9 @@ function ChatSession({
               data-tour="prompt-input"
               placeholder={
                 isInputDisabled
-                  ? phase === "ideating"
+                  ? phase === "researching"
+                    ? "Researching your audience…"
+                    : phase === "ideating"
                     ? "Ideating concepts — check above…"
                     : phase === "clarifying"
                     ? "Answer the questions above to continue…"

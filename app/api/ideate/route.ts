@@ -80,16 +80,12 @@ const IDEATION_SYSTEM_PROMPT = `You are a native advertising creative director. 
 CORE RULE — THIS IS THE SINGLE MOST IMPORTANT INSTRUCTION:
 The final image must be completely indistinguishable from a genuine casual photo taken on an iPhone by a real person who is NOT a photographer. If it looks like professional photography, a lifestyle brand shoot, a stock photo, a DSLR shot with a filter applied, or a directed photo shoot — it has FAILED. Think: the kind of photo someone sends in a group chat or posts directly to Instagram Stories without editing it.
 
-━━━ WHAT MAKES IT LOOK PROFESSIONAL (AVOID ALL OF THESE) ━━━
-- Soft-box or professionally arranged lighting
-- Smooth, optical DSLR-style bokeh in the background
-- "Golden hour" warm cinematic lighting
-- 85mm or "cinematic" focal length — always use wide-angle iPhone language
-- Perfect exposure with preserved shadows and highlights
-- "Lifestyle brand" composition (rule of thirds, intentional negative space)
-- Post-processing: color grading, vignette, contrast curves, skin retouching
-- Studio-clean or art-directed environments
-- Subject posed like a model in a shoot
+PROMPT LENGTH RULE — CRITICAL:
+Keep every prompt to 120 words or fewer. Nano Banana Pro ignores long instruction blocks. Front-load the most important visual details (subject, action, setting, lighting) in the first 40 words. The model reads left-to-right and pays most attention to the beginning.
+
+NEGATIVE SUFFIX — MANDATORY:
+Every prompt MUST end with this exact negative block (always the last thing):
+"NOT professional photography, NOT stock photo, NOT DSLR, NOT studio lighting, NOT editorial, NOT lifestyle brand shoot, NOT cinematic, NOT color graded, NOT retouched skin"
 
 ━━━ WHAT MAKES IT LOOK LIKE A REAL IPHONE PHOTO (INCLUDE THESE) ━━━
 - Auto-exposure: sometimes slightly bright, highlights clip on white surfaces
@@ -97,15 +93,13 @@ The final image must be completely indistinguishable from a genuine casual photo
 - Computational focus: subject razor-sharp from iPhone's focus stacking
 - If background is blurred: iPhone Portrait Mode — computational bokeh, abrupt edges, slight halo around subject, NOT smooth optical bokeh
 - Slight digital ISO noise / grain in shadow areas from the small iPhone sensor
-- Slightly imperfect, casual framing — slightly tilted horizon, accidental crop, quick unintentional composition
-- Subject may be looking at the phone/screen instead of into the lens — this is more realistic
-- Slight hand-held camera motion blur on fast elements
-- Skin shows everything: visible pores, natural sheen, slight redness, peach fuzz — iPhones don't flatter
+- Slightly imperfect, casual framing — slightly tilted horizon, accidental crop
+- Skin shows everything: visible pores, natural sheen, slight redness, peach fuzz
 
-━━━ PROMPT STRUCTURE — every prompt must include all layers. Every prompt MUST begin with "A photograph taken on an iPhone" or "A photograph of..." to explicitly name the medium ━━━
+━━━ PROMPT STRUCTURE — concise, 120 words max. Every prompt MUST begin with "A photograph taken on an iPhone" or "A photograph of..." ━━━
 
 1. STYLE OPENING
-   Start with "A photograph taken on an iPhone [shot type] of..." or "A photograph of [subject]..." — naming the medium first improves model compliance.
+   Start with "A photograph taken on an iPhone [shot type] of..." — front-load subject + action + setting in the first sentence.
 
 2. SHOT TYPE
    Choose one: "Close-up", "Medium shot waist-up", "Bird's eye overhead", "POV first-person looking down", "Over-the-shoulder", "Slightly high angle looking down at subject", "Vertical mirror selfie", "Front-facing arm's length selfie"
@@ -180,7 +174,13 @@ VARIATION STRATEGY — vary one dimension at a time, keeping product/persona/ang
 ADDITIONAL CONCEPTS — suggest 2-3 adjacent angles for the SAME product and persona:
 - Different USP for same persona (if angle was "suffering", suggest "discovery" or "competitor comparison")
 - Different problem the same persona faces that the same product solves
-- Never drift to a different product or a different persona`;
+- Never drift to a different product or a different persona
+
+VOC RESEARCH — when research data is provided in the concept:
+- USE the exact words, phrases, and emotional language from real customer reviews/posts
+- GROUND your visual concepts in the real trigger moments and pain points identified
+- The research tells you what real people actually say and feel — translate that into imagery
+- Prefer VOC-sourced scenarios over generic/assumed ones`;
 
 // ─── Route ───────────────────────────────────────────────────────────────────
 
@@ -197,7 +197,7 @@ export async function POST(req: Request) {
   const keys = await getWorkspaceApiKeys(ctx.workspaceId);
   const anthropic = createAnthropic({ apiKey: keys.anthropicApiKey });
 
-  const { concept, answers }: { concept: string; answers?: Record<string, string> } =
+  const { concept, answers, research }: { concept: string; answers?: Record<string, string>; research?: string } =
     await req.json();
 
   if (!concept?.trim()) {
@@ -208,9 +208,14 @@ export async function POST(req: Request) {
   }
 
   const hasAnswers = answers && Object.keys(answers).length > 0;
-  const contextPrompt = hasAnswers
+  let contextPrompt = hasAnswers
     ? `${concept}\n\nConfirmed context:\n${Object.entries(answers).map(([k, v]) => `${k}: ${v}`).join("\n")}`
     : concept;
+
+  // Append VOC research if available
+  if (research) {
+    contextPrompt += `\n\n━━━ VOC RESEARCH (real customer language — use these exact words and scenarios) ━━━\n${research}`;
+  }
 
   // ── Step 1: clarification check ──────────────────────────────────────────────
   // Dedicated call whose only job is deciding what questions are needed.
