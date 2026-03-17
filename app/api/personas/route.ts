@@ -40,6 +40,8 @@ export async function POST(req: Request) {
     workspace_id: ctx.workspaceId,
     name: name.trim(),
     description: description.trim(),
+    research: null,
+    research_status: "none",
   });
 
   return new Response(JSON.stringify({ persona }), {

@@ -128,6 +128,9 @@ import {
   UsersIcon,
   ClipboardListIcon,
   HelpCircleIcon,
+  ChevronLeftIcon,
+  SearchIcon,
+  Loader2,
 } from "lucide-react";
 // Popover removed — ratio picker is now single-select
 import {
@@ -142,6 +145,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { OnboardingModal, useOnboarding } from "@/components/onboarding/onboarding-modal";
 import { emitChatListChanged } from "@/lib/chat-events";
+import { PersonaResearchReport } from "@/components/persona-research-report";
 import { CreativeBriefDialog } from "@/components/creative-brief-dialog";
 import { CommandPalette } from "@/components/command-palette";
 
@@ -214,6 +218,8 @@ interface Persona {
   id: string;
   name: string;
   description: string;
+  research: string | null;
+  research_status: string;
 }
 
 interface ChatSummary {
@@ -1124,6 +1130,31 @@ function ChatSession({
       .catch(() => {});
   }, []);
 
+  const [newPersonaProduct, setNewPersonaProduct] = useState("");
+  const [viewingResearchId, setViewingResearchId] = useState<string | null>(null);
+
+  const triggerPersonaResearch = useCallback(async (personaId: string, product?: string) => {
+    setPersonas((prev) => prev.map((p) => p.id === personaId ? { ...p, research_status: "researching" } : p));
+    try {
+      const res = await fetch(`/api/personas/${personaId}/research`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product: product || "" }),
+      });
+      if (res.ok) {
+        const { research } = await res.json();
+        setPersonas((prev) => prev.map((p) => p.id === personaId ? { ...p, research, research_status: "complete" } : p));
+        toast.success("Persona research complete");
+      } else {
+        setPersonas((prev) => prev.map((p) => p.id === personaId ? { ...p, research_status: "failed" } : p));
+        toast.error("Research failed");
+      }
+    } catch {
+      setPersonas((prev) => prev.map((p) => p.id === personaId ? { ...p, research_status: "failed" } : p));
+      toast.error("Research failed");
+    }
+  }, []);
+
   const handleSavePersona = useCallback(async () => {
     if (!newPersonaName.trim() || !newPersonaDescription.trim()) return;
     setSavingPersona(true);
@@ -1135,17 +1166,21 @@ function ChatSession({
       });
       if (res.ok) {
         const { persona } = await res.json();
-        setPersonas((prev) => [persona, ...prev]);
+        setPersonas((prev) => [{ ...persona, research: null, research_status: "none" }, ...prev]);
+        const product = newPersonaProduct.trim();
         setNewPersonaName("");
         setNewPersonaDescription("");
-        toast.success("Persona saved");
+        setNewPersonaProduct("");
+        toast.success("Persona saved — starting research...");
+        // Auto-trigger research
+        triggerPersonaResearch(persona.id, product);
       }
     } catch {
       toast.error("Failed to save persona");
     } finally {
       setSavingPersona(false);
     }
-  }, [newPersonaName, newPersonaDescription]);
+  }, [newPersonaName, newPersonaDescription, newPersonaProduct, triggerPersonaResearch]);
 
   const handleDeletePersona = useCallback(async (id: string) => {
     await fetch(`/api/personas/${id}`, { method: "DELETE" });
@@ -1409,31 +1444,37 @@ function ChatSession({
           return;
         }
 
-        // Step 2: Answers provided — run VOC research, then ideate
-        setPhase("researching");
-
-        // Extract product/persona/angle from answers for targeted research
-        const answerValues = Object.values(answers);
-        const product = answerValues[0] || concept;
-        const persona = answerValues[1] || (activePersona?.description ?? "");
-        const angle = answerValues[2] || "";
-
+        // Step 2: Use stored persona research if available, otherwise run live research
         let research: string | null = null;
-        try {
-          const researchRes = await fetch("/api/research", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ product, persona, angle }),
-            signal: abortController.signal,
-          });
-          if (researchRes.ok) {
-            const researchResult = await researchRes.json();
-            research = researchResult.research;
-            setResearchData(research);
+
+        if (activePersona?.research && activePersona.research_status === "complete") {
+          // Use pre-computed persona research
+          research = activePersona.research;
+          setResearchData(research);
+        } else {
+          // Run live VOC research
+          setPhase("researching");
+          const answerValues = Object.values(answers);
+          const product = answerValues[0] || concept;
+          const persona = answerValues[1] || (activePersona?.description ?? "");
+          const angle = answerValues[2] || "";
+
+          try {
+            const researchRes = await fetch("/api/research", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ product, persona, angle }),
+              signal: abortController.signal,
+            });
+            if (researchRes.ok) {
+              const researchResult = await researchRes.json();
+              research = researchResult.research;
+              setResearchData(research);
+            }
+          } catch (researchErr) {
+            if ((researchErr as Error).name === "AbortError") return;
+            console.warn("Research failed, proceeding without VOC data:", researchErr);
           }
-        } catch (researchErr) {
-          if ((researchErr as Error).name === "AbortError") return;
-          console.warn("Research failed, proceeding without VOC data:", researchErr);
         }
 
         // Step 3: Run ideation with research data
@@ -2066,75 +2107,140 @@ function ChatSession({
               </div>
 
               {/* Manage Personas Dialog */}
-              <Dialog open={managePersonasOpen} onOpenChange={setManagePersonasOpen}>
-                <DialogContent className="max-w-md">
+              <Dialog open={managePersonasOpen} onOpenChange={(open) => { setManagePersonasOpen(open); if (!open) setViewingResearchId(null); }}>
+                <DialogContent className={viewingResearchId ? "max-w-2xl max-h-[85vh] overflow-hidden flex flex-col" : "max-w-md"}>
                   <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                      <UsersIcon className="h-4 w-4" />
-                      Personas
+                      {viewingResearchId ? (
+                        <>
+                          <button onClick={() => setViewingResearchId(null)} className="text-muted-foreground hover:text-foreground transition-colors">
+                            <ChevronLeftIcon className="h-4 w-4" />
+                          </button>
+                          <UsersIcon className="h-4 w-4" />
+                          {personas.find((p) => p.id === viewingResearchId)?.name ?? "Persona"} — Research
+                        </>
+                      ) : (
+                        <>
+                          <UsersIcon className="h-4 w-4" />
+                          Personas
+                        </>
+                      )}
                     </DialogTitle>
                   </DialogHeader>
-                  <div className="space-y-4">
-                    {/* Existing personas */}
-                    {personas.length > 0 && (
-                      <div className="space-y-2">
-                        {personas.map((p) => (
-                          <div key={p.id} className="flex items-start gap-2 rounded-lg border p-3">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium">{p.name}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{p.description}</p>
+
+                  {viewingResearchId ? (
+                    <div className="flex-1 overflow-y-auto min-h-0 px-1">
+                      <PersonaResearchReport
+                        research={personas.find((p) => p.id === viewingResearchId)?.research ?? null}
+                        status={personas.find((p) => p.id === viewingResearchId)?.research_status ?? "none"}
+                        onRegenerate={() => triggerPersonaResearch(viewingResearchId)}
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {personas.length > 0 && (
+                        <div className="space-y-2">
+                          {personas.map((p) => (
+                            <div key={p.id} className="rounded-lg border overflow-hidden">
+                              <div className="flex items-start gap-2 p-3">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium">{p.name}</p>
+                                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{p.description}</p>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                                  onClick={() => handleDeletePersona(p.id)}
+                                >
+                                  <TrashIcon className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                              <div className="border-t px-3 py-2 bg-accent/30 flex items-center justify-between">
+                                {p.research_status === "researching" ? (
+                                  <span className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    Researching...
+                                  </span>
+                                ) : p.research_status === "complete" ? (
+                                  <button
+                                    onClick={() => setViewingResearchId(p.id)}
+                                    className="text-[10px] text-primary hover:underline font-medium"
+                                  >
+                                    View research report
+                                  </button>
+                                ) : p.research_status === "failed" ? (
+                                  <button
+                                    onClick={() => triggerPersonaResearch(p.id)}
+                                    className="text-[10px] text-destructive hover:underline"
+                                  >
+                                    Research failed — retry
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => triggerPersonaResearch(p.id)}
+                                    className="text-[10px] text-primary hover:underline flex items-center gap-1"
+                                  >
+                                    <SearchIcon className="h-3 w-3" />
+                                    Generate research
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                              onClick={() => handleDeletePersona(p.id)}
-                            >
-                              <TrashIcon className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {personas.length === 0 && (
-                      <p className="text-xs text-muted-foreground text-center py-2">No personas yet. Add one below.</p>
-                    )}
-                    {/* Add new persona */}
-                    <div className="space-y-3 border-t pt-4">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">New Persona</p>
-                      <div className="space-y-2">
-                        <div>
-                          <Label className="text-xs">Name</Label>
-                          <Input
-                            value={newPersonaName}
-                            onChange={(e) => setNewPersonaName(e.target.value)}
-                            placeholder="e.g. Sarah, 28, fitness"
-                            className="h-8 text-sm mt-1"
-                          />
+                          ))}
                         </div>
-                        <div>
-                          <Label className="text-xs">Description</Label>
-                          <Textarea
-                            value={newPersonaDescription}
-                            onChange={(e) => setNewPersonaDescription(e.target.value)}
-                            placeholder="e.g. Women 25–35, fitness enthusiasts, follow wellness accounts, iPhone Pro users, morning routines"
-                            className="text-sm mt-1 resize-none"
-                            rows={3}
-                          />
+                      )}
+                      {personas.length === 0 && (
+                        <p className="text-xs text-muted-foreground text-center py-2">No personas yet. Add one below.</p>
+                      )}
+                      <div className="space-y-3 border-t pt-4">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">New Persona</p>
+                        <div className="space-y-2">
+                          <div>
+                            <Label className="text-xs">Name</Label>
+                            <Input
+                              value={newPersonaName}
+                              onChange={(e) => setNewPersonaName(e.target.value)}
+                              placeholder="e.g. Sarah, 42, skincare-obsessed"
+                              className="h-8 text-sm mt-1"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">Description</Label>
+                            <Textarea
+                              value={newPersonaDescription}
+                              onChange={(e) => setNewPersonaDescription(e.target.value)}
+                              placeholder="e.g. Women 38–52, suburban moms, struggled with aging skin, tried everything, skeptical of new products"
+                              className="text-sm mt-1 resize-none"
+                              rows={3}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">Product / Brand <span className="text-muted-foreground">(for research)</span></Label>
+                            <Input
+                              value={newPersonaProduct}
+                              onChange={(e) => setNewPersonaProduct(e.target.value)}
+                              placeholder="e.g. Michael Todd Beauty Soniclear"
+                              className="h-8 text-sm mt-1"
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" size="sm" onClick={() => setManagePersonasOpen(false)}>Close</Button>
-                    <Button
-                      size="sm"
-                      disabled={savingPersona || !newPersonaName.trim() || !newPersonaDescription.trim()}
-                      onClick={handleSavePersona}
-                    >
-                      {savingPersona ? "Saving…" : "Save persona"}
-                    </Button>
-                  </DialogFooter>
+                  )}
+
+                  {!viewingResearchId && (
+                    <DialogFooter>
+                      <Button variant="outline" size="sm" onClick={() => setManagePersonasOpen(false)}>Close</Button>
+                      <Button
+                        size="sm"
+                        disabled={savingPersona || !newPersonaName.trim() || !newPersonaDescription.trim()}
+                        onClick={handleSavePersona}
+                      >
+                        {savingPersona ? "Saving…" : "Save & research"}
+                      </Button>
+                    </DialogFooter>
+                  )}
                 </DialogContent>
               </Dialog>
 

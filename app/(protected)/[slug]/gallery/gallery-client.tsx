@@ -85,6 +85,8 @@ function GalleryCard({
   onToggleSelect,
   onResize,
   resizing,
+  onMoreLikeThis,
+  generatingMore,
   slug,
 }: {
   image: GeneratedImage;
@@ -92,12 +94,15 @@ function GalleryCard({
   onToggleSelect: () => void;
   onResize: (imageId: string, aspectRatio: string) => void;
   resizing: string | null;
+  onMoreLikeThis: (imageId: string) => void;
+  generatingMore: string | null;
   slug: string;
 }) {
   const [promptOpen, setPromptOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const isResizing = resizing === image.id;
+  const isGeneratingMore = generatingMore === image.id;
   const availableRatios = RESIZE_RATIOS.filter((r) => r.value !== image.aspect_ratio);
 
   const handleDownload = async () => {
@@ -210,6 +215,14 @@ function GalleryCard({
                 ))}
               </PopoverContent>
             </Popover>
+            <Button
+              variant="ghost" size="sm" className="h-6 px-1.5 text-[10px] gap-1"
+              disabled={isGeneratingMore}
+              onClick={() => onMoreLikeThis(image.id)}
+            >
+              {isGeneratingMore ? <LoaderIcon className="h-2.5 w-2.5 animate-spin" /> : <CopyIcon className="h-2.5 w-2.5" />}
+              More
+            </Button>
             {image.chat_id && (
               <Link href={`/${slug}/chat/${image.chat_id}`}>
                 <Button variant="ghost" size="sm" className="h-6 px-1.5 text-[10px] gap-1">
@@ -269,6 +282,29 @@ export default function GalleryClient({ initialImages }: { initialImages: Genera
   const [createdDeckUrl, setCreatedDeckUrl] = useState<string | null>(null);
   const [bulkDownloading, setBulkDownloading] = useState(false);
   const [resizingId, setResizingId] = useState<string | null>(null);
+  const [generatingMoreId, setGeneratingMoreId] = useState<string | null>(null);
+
+  const handleMoreLikeThis = useCallback(async (imageId: string) => {
+    setGeneratingMoreId(imageId);
+    try {
+      const res = await fetch("/api/images/variations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageId, count: 4 }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Generation failed");
+      }
+      const { images: newImages } = await res.json();
+      setImages((prev) => [...newImages, ...prev]);
+      toast.success(`Generated ${newImages.length} variations`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to generate variations");
+    } finally {
+      setGeneratingMoreId(null);
+    }
+  }, []);
 
   const handleResize = useCallback(async (imageId: string, aspectRatio: string) => {
     setResizingId(imageId);
@@ -434,6 +470,8 @@ export default function GalleryClient({ initialImages }: { initialImages: Genera
                   onToggleSelect={() => toggleSelect(image.id)}
                   onResize={handleResize}
                   resizing={resizingId}
+                  onMoreLikeThis={handleMoreLikeThis}
+                  generatingMore={generatingMoreId}
                   slug={slug}
                 />
               </div>

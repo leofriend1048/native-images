@@ -83,6 +83,8 @@ export async function initSchema() {
       workspace_id TEXT,
       name TEXT NOT NULL,
       description TEXT NOT NULL,
+      research TEXT,
+      research_status TEXT DEFAULT 'none',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -125,6 +127,12 @@ export async function initSchema() {
   ).catch(() => {});
   await client.execute(
     `ALTER TABLE invites ADD COLUMN workspace_id TEXT`
+  ).catch(() => {});
+  await client.execute(
+    `ALTER TABLE user_personas ADD COLUMN research TEXT`
+  ).catch(() => {});
+  await client.execute(
+    `ALTER TABLE user_personas ADD COLUMN research_status TEXT DEFAULT 'none'`
   ).catch(() => {});
 
   // Seed workspaces
@@ -796,6 +804,8 @@ export interface UserPersona {
   workspace_id: string | null;
   name: string;
   description: string;
+  research: string | null;
+  research_status: string;
   created_at: string;
 }
 
@@ -819,14 +829,33 @@ export async function createPersona(
   persona: Omit<UserPersona, "created_at">
 ): Promise<UserPersona> {
   await client.execute({
-    sql: `INSERT INTO user_personas (id, user_id, workspace_id, name, description) VALUES (?, ?, ?, ?, ?)`,
-    args: [persona.id, persona.user_id, persona.workspace_id ?? null, persona.name, persona.description],
+    sql: `INSERT INTO user_personas (id, user_id, workspace_id, name, description, research, research_status) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    args: [persona.id, persona.user_id, persona.workspace_id ?? null, persona.name, persona.description, persona.research ?? null, persona.research_status ?? "none"],
   });
   const result = await client.execute({
     sql: `SELECT * FROM user_personas WHERE id = ?`,
     args: [persona.id],
   });
   return result.rows[0] as unknown as UserPersona;
+}
+
+export async function getPersonaById(id: string): Promise<UserPersona | null> {
+  const result = await client.execute({
+    sql: `SELECT * FROM user_personas WHERE id = ?`,
+    args: [id],
+  });
+  return (result.rows[0] as unknown as UserPersona) ?? null;
+}
+
+export async function updatePersonaResearch(
+  id: string,
+  research: string,
+  status: "researching" | "complete" | "failed"
+): Promise<void> {
+  await client.execute({
+    sql: `UPDATE user_personas SET research = ?, research_status = ? WHERE id = ?`,
+    args: [research, status, id],
+  });
 }
 
 export async function deletePersona(id: string, userId: string): Promise<void> {

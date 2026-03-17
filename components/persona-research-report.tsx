@@ -1,0 +1,562 @@
+"use client";
+
+import { useState } from "react";
+import { ChevronDownIcon, ChevronRightIcon, QuoteIcon, SearchIcon, Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface PersonaResearch {
+  demographics: {
+    age_range: string;
+    gender: string;
+    marital_status: string;
+    life_stage: string;
+    geography: string;
+    household_income: string;
+    employment: string;
+    education: string;
+    spending_style: string;
+  };
+  desire_mapping: {
+    primary_desire: string;
+    urgency: number;
+    staying_power: number;
+    scope: number;
+    driving_force: string;
+    surface_desire_voc: string;
+    deeper_desire: string;
+    core_desire: string;
+    competitor_desire_gap: string;
+    competing_desires: string[];
+    lead_desire: string;
+    secondary_benefits: string[];
+  };
+  awareness: {
+    stage: number;
+    stage_label: string;
+    current_beliefs_voc: string;
+    knows_root_cause: boolean;
+    believes_solution_possible_voc: string;
+    state_of_mind: string;
+    headline_entry_point: string;
+  };
+  sophistication: {
+    stage: number;
+    stage_label: string;
+    claims_heard_voc: string[];
+    mechanisms_introduced: string[];
+    broken_promises_voc: string[];
+    bold_claim_still_works: boolean;
+    strategy: string;
+  };
+  psychological_elements: {
+    desires: {
+      surface_voc: string;
+      deeper: string;
+      core_voc: string;
+      urgency_triggers: string[];
+    };
+    identifications: {
+      demographic_identity: string;
+      situational_identity: string;
+      aspirational_identity_voc: string;
+      tribal_identity: string;
+      shadow_identity_voc: string;
+      before_identity_voc: string;
+      after_identity_voc: string;
+      people_like_me_signals_voc: string[];
+      repelling_identity_claims: string[];
+      sees_self_as_buyer: string;
+    };
+    beliefs: {
+      about_problem_voc: string;
+      about_solutions_voc: string;
+      about_category_voc: string;
+      about_self_voc: string;
+      about_deserving: string;
+      supporting_beliefs: string[];
+      blocking_beliefs: string[];
+      first_belief_to_change: string;
+      belief_change_sequence: string[];
+    };
+  };
+  pain_architecture: {
+    problem_in_her_words_voc: string;
+    onset_and_cause: string;
+    aware_of_root_cause: boolean;
+    her_word_for_it_voc: string;
+    mirror_moment_voc: string;
+    mirror_moment_details: string;
+    immediate_reaction: string;
+    duration: string;
+    accepted_as_permanent_voc: string;
+    getting_worse_or_numb: string;
+    coping_self_talk_voc: string;
+    primary_emotion_voc: string;
+    secondary_emotions: string[];
+    self_perception_voc: string;
+    avoidance_behaviors_voc: string[];
+    guilt_about_others: string;
+    physical_manifestations_voc: string[];
+    daily_routine_impact_voc: string;
+    hiding_compensating_voc: string;
+    social_avoidance_voc: string[];
+    talks_openly_or_silent: string;
+    what_others_say_voc: string;
+    feels_alone_or_validated: string;
+  };
+  failed_solutions: {
+    tried_list_voc: string[];
+    why_each_failed_voc: string[];
+    money_spent: string;
+    time_spent: string;
+    failure_impact_on_self_belief_voc: string;
+    willingness_to_try_again_voc: string;
+    serial_skeptic_or_hopeful: string;
+    why_keeps_trying_voc: string;
+    instant_dismissal_triggers_voc: string[];
+    what_feels_different_voc: string;
+  };
+  enemy_construction: {
+    external_enemy_voc: string;
+    internal_enemy_voc: string;
+    specific_villains_voc: string[];
+    felt_injustice_voc: string;
+    angrier_at_self_or_external: string;
+    validating_conspiracy: string;
+    betrayal_experience_voc: string;
+  };
+  fear_mapping: {
+    fear_of_trying_again_voc: string;
+    fear_of_wasting_money_voc: string;
+    fear_of_judgment: string;
+    fear_of_being_sucker_voc: string;
+    fear_wont_work_for_me_voc: string;
+    fear_if_nothing_works_voc: string;
+    existential_fear: string;
+    worst_case_outcome: string;
+    nightmare_future_voc: string;
+  };
+  desire_outcomes: {
+    immediate_7_day_voc: string;
+    visible_30_day_voc: string;
+    life_change_90_day_voc: string;
+    ultimate_dream_1_year_voc: string;
+    first_time_it_works_voc: string;
+    relationship_moment: string;
+    feeling_like_herself_voc: string;
+    primary_desire_type: string;
+  };
+  forces_of_change: {
+    permanent_force: string;
+    force_of_change: string;
+    search_trigger: string;
+    timing_type: string;
+    cultural_urgency: string;
+  };
+  language_and_voice: {
+    problem_words_voc: string[];
+    outcome_words_voc: string[];
+    failure_phrases_voc: string[];
+    vocabulary_level: string;
+    humor_style: string;
+    gets_me_phrases_voc: string[];
+    condescending_words_voc: string[];
+    tuned_out_words_voc: string[];
+    lowest_moment_self_talk_voc: string;
+    when_it_works_voc: string;
+  };
+  proof_triggers: {
+    trusted_proof_types: string[];
+    distrusted_proof_voc: string[];
+    trusted_sources: string[];
+    needs_mechanism_or_just_proof: string;
+    testimonial_must_say_voc: string;
+    proof_points_needed: string;
+    guarantee_language_voc: string;
+    scarcity_response: string;
+    research_or_emotion: string;
+  };
+  market_competition: {
+    competitors_encountered: string[];
+    claims_exposed_to: string[];
+    mechanisms_explained: string[];
+    tuned_out_tactics: string[];
+    white_space: string;
+    genuinely_new_angle: string;
+  };
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function VOCQuote({ text }: { text: string }) {
+  if (!text) return null;
+  return (
+    <div className="flex gap-2 py-1.5 px-2.5 rounded-lg bg-amber-500/5 border border-amber-500/10">
+      <QuoteIcon className="h-3 w-3 mt-0.5 shrink-0 text-amber-500/60" />
+      <p className="text-xs italic text-foreground/80 leading-relaxed">{text}</p>
+    </div>
+  );
+}
+
+function VOCList({ items }: { items: string[] }) {
+  if (!items?.length) return null;
+  return (
+    <div className="space-y-1">
+      {items.map((item, i) => (
+        <VOCQuote key={i} text={item} />
+      ))}
+    </div>
+  );
+}
+
+function Field({ label, value }: { label: string; value: string | number | boolean | undefined }) {
+  if (value === undefined || value === null || value === "") return null;
+  const display = typeof value === "boolean" ? (value ? "Yes" : "No") : String(value);
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">{label}</span>
+      <span className="text-xs text-foreground/90 leading-relaxed">{display}</span>
+    </div>
+  );
+}
+
+function ScoreBar({ label, value, max = 10 }: { label: string; value: number; max?: number }) {
+  const pct = Math.min((value / max) * 100, 100);
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium w-24 shrink-0">{label}</span>
+      <div className="flex-1 h-1.5 rounded-full bg-muted">
+        <div className="h-full rounded-full bg-foreground/70 transition-all" style={{ width: `${pct}%` }} />
+      </div>
+      <span className="text-xs font-medium text-foreground/70 w-6 text-right">{value}</span>
+    </div>
+  );
+}
+
+function Section({
+  title,
+  number,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  number: number;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div className="border-b border-border/50 last:border-0">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-3 py-3 px-1 text-left hover:bg-accent/30 transition-colors rounded-lg"
+      >
+        <span className="flex items-center justify-center w-5 h-5 rounded-md bg-foreground/10 text-[10px] font-bold text-foreground/60 shrink-0">
+          {number}
+        </span>
+        <span className="text-xs font-semibold tracking-wide uppercase text-foreground/80 flex-1">{title}</span>
+        {open ? (
+          <ChevronDownIcon className="h-3.5 w-3.5 text-muted-foreground" />
+        ) : (
+          <ChevronRightIcon className="h-3.5 w-3.5 text-muted-foreground" />
+        )}
+      </button>
+      {open && <div className="pb-4 px-1 space-y-3">{children}</div>}
+    </div>
+  );
+}
+
+// ─── Loading skeleton ─────────────────────────────────────────────────────────
+
+export function PersonaResearchSkeleton() {
+  return (
+    <div className="space-y-4 p-4">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        <span>Researching persona — searching reviews, forums, social media...</span>
+      </div>
+      <div className="space-y-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="space-y-2">
+            <Skeleton className="h-3 w-32" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Report ──────────────────────────────────────────────────────────────
+
+export function PersonaResearchReport({
+  research,
+  status,
+  onRegenerate,
+}: {
+  research: string | null;
+  status: string;
+  onRegenerate?: () => void;
+}) {
+  if (status === "researching") {
+    return <PersonaResearchSkeleton />;
+  }
+
+  if (status === "failed") {
+    return (
+      <div className="p-4 space-y-2">
+        <p className="text-sm text-muted-foreground">Research failed.</p>
+        {onRegenerate && (
+          <button
+            onClick={onRegenerate}
+            className="text-xs text-primary hover:underline flex items-center gap-1"
+          >
+            <SearchIcon className="h-3 w-3" />
+            Try again
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  if (!research || status === "none") {
+    return (
+      <div className="p-4 space-y-2">
+        <p className="text-xs text-muted-foreground">No research yet.</p>
+        {onRegenerate && (
+          <button
+            onClick={onRegenerate}
+            className="text-xs text-primary hover:underline flex items-center gap-1"
+          >
+            <SearchIcon className="h-3 w-3" />
+            Generate research report
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // Parse the research JSON
+  let data: PersonaResearch;
+  try {
+    data = JSON.parse(research);
+  } catch {
+    // If it's not JSON, show raw text
+    return (
+      <div className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Research Report</p>
+          {onRegenerate && (
+            <button onClick={onRegenerate} className="text-[10px] text-primary hover:underline">Regenerate</button>
+          )}
+        </div>
+        <div className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{research}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-0">
+      <div className="flex items-center justify-between px-1 pb-2">
+        <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest">Persona Research Dossier</p>
+        {onRegenerate && (
+          <button onClick={onRegenerate} className="text-[10px] text-primary hover:underline">Regenerate</button>
+        )}
+      </div>
+
+      {/* Section 1: Demographics */}
+      <Section title="Demographics" number={1} defaultOpen>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Age" value={data.demographics?.age_range} />
+          <Field label="Gender" value={data.demographics?.gender} />
+          <Field label="Marital Status" value={data.demographics?.marital_status} />
+          <Field label="Life Stage" value={data.demographics?.life_stage} />
+          <Field label="Geography" value={data.demographics?.geography} />
+          <Field label="Income" value={data.demographics?.household_income} />
+          <Field label="Employment" value={data.demographics?.employment} />
+          <Field label="Spending Style" value={data.demographics?.spending_style} />
+        </div>
+      </Section>
+
+      {/* Section 2: Desire Mapping */}
+      <Section title="Desire Mapping" number={2}>
+        <Field label="Primary Desire" value={data.desire_mapping?.primary_desire} />
+        <div className="space-y-1.5 pt-1">
+          <ScoreBar label="Urgency" value={data.desire_mapping?.urgency ?? 0} />
+          <ScoreBar label="Staying Power" value={data.desire_mapping?.staying_power ?? 0} />
+          <ScoreBar label="Scope" value={data.desire_mapping?.scope ?? 0} />
+        </div>
+        <Field label="Driving Force" value={data.desire_mapping?.driving_force} />
+        <VOCQuote text={data.desire_mapping?.surface_desire_voc} />
+        <Field label="Deeper Desire" value={data.desire_mapping?.deeper_desire} />
+        <Field label="Core Desire" value={data.desire_mapping?.core_desire} />
+        <Field label="Competitor Gap" value={data.desire_mapping?.competitor_desire_gap} />
+      </Section>
+
+      {/* Section 3: Awareness */}
+      <Section title="Awareness Mapping" number={3}>
+        <div className="flex items-center gap-3 pb-1">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">Stage</span>
+          <div className="flex gap-0.5">
+            {[1, 2, 3, 4, 5].map((s) => (
+              <div
+                key={s}
+                className={`w-8 h-2 rounded-full transition-colors ${
+                  s <= (data.awareness?.stage ?? 0) ? "bg-foreground/70" : "bg-muted"
+                }`}
+              />
+            ))}
+          </div>
+          <span className="text-xs text-foreground/70">{data.awareness?.stage_label}</span>
+        </div>
+        <VOCQuote text={data.awareness?.current_beliefs_voc} />
+        <Field label="Knows Root Cause" value={data.awareness?.knows_root_cause} />
+        <VOCQuote text={data.awareness?.believes_solution_possible_voc} />
+        <Field label="State of Mind" value={data.awareness?.state_of_mind} />
+        <Field label="Entry Point" value={data.awareness?.headline_entry_point} />
+      </Section>
+
+      {/* Section 4: Sophistication */}
+      <Section title="Sophistication Mapping" number={4}>
+        <div className="flex items-center gap-3 pb-1">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">Stage</span>
+          <div className="flex gap-0.5">
+            {[1, 2, 3, 4, 5].map((s) => (
+              <div
+                key={s}
+                className={`w-8 h-2 rounded-full transition-colors ${
+                  s <= (data.sophistication?.stage ?? 0) ? "bg-foreground/70" : "bg-muted"
+                }`}
+              />
+            ))}
+          </div>
+          <span className="text-xs text-foreground/70">{data.sophistication?.stage_label}</span>
+        </div>
+        <VOCList items={data.sophistication?.claims_heard_voc} />
+        <VOCList items={data.sophistication?.broken_promises_voc} />
+        <Field label="Bold Claim Works" value={data.sophistication?.bold_claim_still_works} />
+        <Field label="Strategy" value={data.sophistication?.strategy} />
+      </Section>
+
+      {/* Section 5: Psychological Elements */}
+      <Section title="Psychological Elements" number={5}>
+        <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-bold pt-1">Desires</p>
+        <VOCQuote text={data.psychological_elements?.desires?.surface_voc} />
+        <Field label="Deeper" value={data.psychological_elements?.desires?.deeper} />
+        <VOCQuote text={data.psychological_elements?.desires?.core_voc} />
+
+        <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-bold pt-3">Identity</p>
+        <VOCQuote text={data.psychological_elements?.identifications?.aspirational_identity_voc} />
+        <VOCQuote text={data.psychological_elements?.identifications?.shadow_identity_voc} />
+        <VOCQuote text={data.psychological_elements?.identifications?.before_identity_voc} />
+        <VOCQuote text={data.psychological_elements?.identifications?.after_identity_voc} />
+        <VOCList items={data.psychological_elements?.identifications?.people_like_me_signals_voc} />
+
+        <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-bold pt-3">Beliefs</p>
+        <VOCQuote text={data.psychological_elements?.beliefs?.about_problem_voc} />
+        <VOCQuote text={data.psychological_elements?.beliefs?.about_solutions_voc} />
+        <VOCQuote text={data.psychological_elements?.beliefs?.about_self_voc} />
+        <Field label="First Belief to Change" value={data.psychological_elements?.beliefs?.first_belief_to_change} />
+      </Section>
+
+      {/* Section 6: Pain Architecture */}
+      <Section title="Pain Architecture" number={6} defaultOpen>
+        <VOCQuote text={data.pain_architecture?.problem_in_her_words_voc} />
+        <VOCQuote text={data.pain_architecture?.her_word_for_it_voc} />
+        <VOCQuote text={data.pain_architecture?.mirror_moment_voc} />
+        <Field label="Mirror Moment Details" value={data.pain_architecture?.mirror_moment_details} />
+        <VOCQuote text={data.pain_architecture?.coping_self_talk_voc} />
+        <VOCQuote text={data.pain_architecture?.primary_emotion_voc} />
+        <VOCQuote text={data.pain_architecture?.self_perception_voc} />
+        <VOCList items={data.pain_architecture?.avoidance_behaviors_voc} />
+        <VOCList items={data.pain_architecture?.physical_manifestations_voc} />
+        <VOCList items={data.pain_architecture?.social_avoidance_voc} />
+      </Section>
+
+      {/* Section 7: Failed Solutions */}
+      <Section title="Failed Solutions History" number={7}>
+        <VOCList items={data.failed_solutions?.tried_list_voc} />
+        <VOCList items={data.failed_solutions?.why_each_failed_voc} />
+        <Field label="Money Spent" value={data.failed_solutions?.money_spent} />
+        <VOCQuote text={data.failed_solutions?.failure_impact_on_self_belief_voc} />
+        <VOCQuote text={data.failed_solutions?.willingness_to_try_again_voc} />
+        <VOCList items={data.failed_solutions?.instant_dismissal_triggers_voc} />
+        <VOCQuote text={data.failed_solutions?.what_feels_different_voc} />
+      </Section>
+
+      {/* Section 8: Enemy Construction */}
+      <Section title="Enemy Construction" number={8}>
+        <VOCQuote text={data.enemy_construction?.external_enemy_voc} />
+        <VOCQuote text={data.enemy_construction?.internal_enemy_voc} />
+        <VOCList items={data.enemy_construction?.specific_villains_voc} />
+        <VOCQuote text={data.enemy_construction?.felt_injustice_voc} />
+        <VOCQuote text={data.enemy_construction?.betrayal_experience_voc} />
+      </Section>
+
+      {/* Section 9: Fear Mapping */}
+      <Section title="Deep Fear Mapping" number={9}>
+        <VOCQuote text={data.fear_mapping?.fear_of_trying_again_voc} />
+        <VOCQuote text={data.fear_mapping?.fear_of_wasting_money_voc} />
+        <VOCQuote text={data.fear_mapping?.fear_of_being_sucker_voc} />
+        <VOCQuote text={data.fear_mapping?.fear_wont_work_for_me_voc} />
+        <VOCQuote text={data.fear_mapping?.fear_if_nothing_works_voc} />
+        <Field label="Existential Fear" value={data.fear_mapping?.existential_fear} />
+        <VOCQuote text={data.fear_mapping?.nightmare_future_voc} />
+      </Section>
+
+      {/* Section 10: Desire Outcomes */}
+      <Section title="Desired Outcomes" number={10}>
+        <VOCQuote text={data.desire_outcomes?.immediate_7_day_voc} />
+        <VOCQuote text={data.desire_outcomes?.visible_30_day_voc} />
+        <VOCQuote text={data.desire_outcomes?.life_change_90_day_voc} />
+        <VOCQuote text={data.desire_outcomes?.ultimate_dream_1_year_voc} />
+        <VOCQuote text={data.desire_outcomes?.first_time_it_works_voc} />
+        <VOCQuote text={data.desire_outcomes?.feeling_like_herself_voc} />
+        <Field label="Desire Type" value={data.desire_outcomes?.primary_desire_type} />
+      </Section>
+
+      {/* Section 11: Forces of Change */}
+      <Section title="Forces of Change" number={11}>
+        <Field label="Permanent Force" value={data.forces_of_change?.permanent_force} />
+        <Field label="Force of Change" value={data.forces_of_change?.force_of_change} />
+        <Field label="Search Trigger" value={data.forces_of_change?.search_trigger} />
+        <Field label="Timing" value={data.forces_of_change?.timing_type} />
+        <Field label="Cultural Urgency" value={data.forces_of_change?.cultural_urgency} />
+      </Section>
+
+      {/* Section 12: Language and Voice */}
+      <Section title="Language & Voice" number={12} defaultOpen>
+        <VOCList items={data.language_and_voice?.problem_words_voc} />
+        <VOCList items={data.language_and_voice?.outcome_words_voc} />
+        <VOCList items={data.language_and_voice?.failure_phrases_voc} />
+        <VOCList items={data.language_and_voice?.gets_me_phrases_voc} />
+        <VOCList items={data.language_and_voice?.condescending_words_voc} />
+        <VOCList items={data.language_and_voice?.tuned_out_words_voc} />
+        <VOCQuote text={data.language_and_voice?.lowest_moment_self_talk_voc} />
+        <VOCQuote text={data.language_and_voice?.when_it_works_voc} />
+      </Section>
+
+      {/* Section 13: Proof Triggers */}
+      <Section title="Proof & Persuasion" number={13}>
+        <Field label="Trusted Proof" value={data.proof_triggers?.trusted_proof_types?.join(", ")} />
+        <VOCList items={data.proof_triggers?.distrusted_proof_voc} />
+        <Field label="Trusted Sources" value={data.proof_triggers?.trusted_sources?.join(", ")} />
+        <VOCQuote text={data.proof_triggers?.testimonial_must_say_voc} />
+        <VOCQuote text={data.proof_triggers?.guarantee_language_voc} />
+        <Field label="Decision Style" value={data.proof_triggers?.research_or_emotion} />
+      </Section>
+
+      {/* Section 14: Market Competition */}
+      <Section title="Market Competition" number={14}>
+        <Field label="Competitors" value={data.market_competition?.competitors_encountered?.join(", ")} />
+        <Field label="Claims Exposed To" value={data.market_competition?.claims_exposed_to?.join(", ")} />
+        <Field label="Tuned Out" value={data.market_competition?.tuned_out_tactics?.join(", ")} />
+        <Field label="White Space" value={data.market_competition?.white_space} />
+        <Field label="New Angle" value={data.market_competition?.genuinely_new_angle} />
+      </Section>
+    </div>
+  );
+}
