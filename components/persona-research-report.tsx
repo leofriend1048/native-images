@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDownIcon, ChevronRightIcon, QuoteIcon, SearchIcon, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { ChevronDownIcon, QuoteIcon, SearchIcon, Loader2, RefreshCwIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -193,17 +195,18 @@ interface PersonaResearch {
 function VOCQuote({ text }: { text: string }) {
   if (!text) return null;
   return (
-    <div className="flex gap-2 py-1.5 px-2.5 rounded-lg bg-amber-500/5 border border-amber-500/10">
-      <QuoteIcon className="h-3 w-3 mt-0.5 shrink-0 text-amber-500/60" />
-      <p className="text-xs italic text-foreground/80 leading-relaxed">{text}</p>
+    <div className="flex gap-2.5 py-2 px-3 rounded-lg bg-amber-500/[0.04] border border-amber-500/10">
+      <QuoteIcon className="h-3 w-3 mt-0.5 shrink-0 text-amber-500/50" />
+      <p className="text-[13px] italic text-foreground/75 leading-relaxed">{text}</p>
     </div>
   );
 }
 
-function VOCList({ items }: { items: string[] }) {
+function VOCList({ items, label }: { items: string[]; label?: string }) {
   if (!items?.length) return null;
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
+      {label && <span className="text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium">{label}</span>}
       {items.map((item, i) => (
         <VOCQuote key={i} text={item} />
       ))}
@@ -216,8 +219,8 @@ function Field({ label, value }: { label: string; value: string | number | boole
   const display = typeof value === "boolean" ? (value ? "Yes" : "No") : String(value);
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">{label}</span>
-      <span className="text-xs text-foreground/90 leading-relaxed">{display}</span>
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium">{label}</span>
+      <span className="text-[13px] text-foreground/85 leading-relaxed">{display}</span>
     </div>
   );
 }
@@ -225,15 +228,66 @@ function Field({ label, value }: { label: string; value: string | number | boole
 function ScoreBar({ label, value, max = 10 }: { label: string; value: number; max?: number }) {
   const pct = Math.min((value / max) * 100, 100);
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium w-24 shrink-0">{label}</span>
-      <div className="flex-1 h-1.5 rounded-full bg-muted">
-        <div className="h-full rounded-full bg-foreground/70 transition-all" style={{ width: `${pct}%` }} />
+    <div className="flex items-center gap-3">
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium w-24 shrink-0">{label}</span>
+      <div className="flex-1 h-1.5 rounded-full bg-foreground/[0.06]">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="h-full rounded-full bg-foreground/60"
+        />
       </div>
-      <span className="text-xs font-medium text-foreground/70 w-6 text-right">{value}</span>
+      <span className="text-xs tabular-nums font-medium text-foreground/50 w-6 text-right">{value}</span>
     </div>
   );
 }
+
+function StageIndicator({ stage, label }: { stage: number; label: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex gap-1">
+        {[1, 2, 3, 4, 5].map((s) => (
+          <motion.div
+            key={s}
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: s * 0.05, duration: 0.2 }}
+            className={`w-7 h-1.5 rounded-full transition-colors ${
+              s <= stage ? "bg-foreground/60" : "bg-foreground/[0.06]"
+            }`}
+          />
+        ))}
+      </div>
+      <span className="text-xs text-foreground/60 font-medium">{label}</span>
+    </div>
+  );
+}
+
+function SubHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[10px] uppercase tracking-widest text-muted-foreground/40 font-semibold pt-2 pb-0.5">{children}</p>
+  );
+}
+
+// ─── Section ──────────────────────────────────────────────────────────────────
+
+const SECTION_COLORS: Record<number, string> = {
+  1: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
+  2: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+  3: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  4: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  5: "bg-pink-500/10 text-pink-600 dark:text-pink-400",
+  6: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
+  7: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
+  8: "bg-red-500/10 text-red-600 dark:text-red-400",
+  9: "bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400",
+  10: "bg-teal-500/10 text-teal-600 dark:text-teal-400",
+  11: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
+  12: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
+  13: "bg-lime-500/10 text-lime-700 dark:text-lime-400",
+  14: "bg-slate-500/10 text-slate-600 dark:text-slate-400",
+};
 
 function Section({
   title,
@@ -247,24 +301,33 @@ function Section({
   defaultOpen?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const colorClass = SECTION_COLORS[number] || "bg-foreground/10 text-foreground/60";
 
   return (
-    <div className="border-b border-border/50 last:border-0">
+    <div className="border-b border-border/40 last:border-0">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-3 py-3 px-1 text-left hover:bg-accent/30 transition-colors rounded-lg"
+        className="w-full flex items-center gap-3 py-4 text-left hover:bg-accent/20 transition-colors rounded-lg px-2 -mx-2"
       >
-        <span className="flex items-center justify-center w-5 h-5 rounded-md bg-foreground/10 text-[10px] font-bold text-foreground/60 shrink-0">
+        <span className={`flex items-center justify-center w-6 h-6 rounded-md text-[10px] font-bold shrink-0 ${colorClass}`}>
           {number}
         </span>
-        <span className="text-xs font-semibold tracking-wide uppercase text-foreground/80 flex-1">{title}</span>
-        {open ? (
-          <ChevronDownIcon className="h-3.5 w-3.5 text-muted-foreground" />
-        ) : (
-          <ChevronRightIcon className="h-3.5 w-3.5 text-muted-foreground" />
-        )}
+        <span className="text-sm font-medium text-foreground/85 flex-1">{title}</span>
+        <ChevronDownIcon className={`h-4 w-4 text-muted-foreground/40 transition-transform duration-200 ${open ? "" : "-rotate-90"}`} />
       </button>
-      {open && <div className="pb-4 px-1 space-y-3">{children}</div>}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div className="pb-5 px-1 space-y-3">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -273,16 +336,16 @@ function Section({
 
 export function PersonaResearchSkeleton() {
   return (
-    <div className="space-y-4 p-4">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+    <div className="space-y-6 py-2">
+      <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
         <span>Researching persona — searching reviews, forums, social media...</span>
       </div>
-      <div className="space-y-3">
+      <div className="space-y-4">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="space-y-2">
-            <Skeleton className="h-3 w-32" />
-            <Skeleton className="h-10 w-full" />
+          <div key={i} className="space-y-2.5">
+            <Skeleton className="h-3.5 w-36" />
+            <Skeleton className="h-12 w-full rounded-lg" />
           </div>
         ))}
       </div>
@@ -307,16 +370,17 @@ export function PersonaResearchReport({
 
   if (status === "failed") {
     return (
-      <div className="p-4 space-y-2">
-        <p className="text-sm text-muted-foreground">Research failed.</p>
+      <div className="py-16 flex flex-col items-center text-center">
+        <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center mb-3">
+          <SearchIcon className="h-4 w-4 text-destructive" />
+        </div>
+        <p className="text-sm font-medium text-foreground/70">Research failed</p>
+        <p className="text-xs text-muted-foreground mt-1">Something went wrong during the research process</p>
         {onRegenerate && (
-          <button
-            onClick={onRegenerate}
-            className="text-xs text-primary hover:underline flex items-center gap-1"
-          >
-            <SearchIcon className="h-3 w-3" />
+          <Button variant="outline" size="sm" className="mt-4 gap-1.5" onClick={onRegenerate}>
+            <RefreshCwIcon className="h-3 w-3" />
             Try again
-          </button>
+          </Button>
         )}
       </div>
     );
@@ -324,16 +388,17 @@ export function PersonaResearchReport({
 
   if (!research || status === "none") {
     return (
-      <div className="p-4 space-y-2">
-        <p className="text-xs text-muted-foreground">No research yet.</p>
+      <div className="py-16 flex flex-col items-center text-center">
+        <div className="w-10 h-10 rounded-xl bg-foreground/[0.03] border border-border/60 flex items-center justify-center mb-3">
+          <SearchIcon className="h-4 w-4 text-muted-foreground/40" />
+        </div>
+        <p className="text-sm font-medium text-foreground/70">No research yet</p>
+        <p className="text-xs text-muted-foreground mt-1">Generate a research report to understand this persona</p>
         {onRegenerate && (
-          <button
-            onClick={onRegenerate}
-            className="text-xs text-primary hover:underline flex items-center gap-1"
-          >
+          <Button variant="outline" size="sm" className="mt-4 gap-1.5" onClick={onRegenerate}>
             <SearchIcon className="h-3 w-3" />
-            Generate research report
-          </button>
+            Generate research
+          </Button>
         )}
       </div>
     );
@@ -344,32 +409,24 @@ export function PersonaResearchReport({
   try {
     data = JSON.parse(research);
   } catch {
-    // If it's not JSON, show raw text
     return (
-      <div className="p-4 space-y-3">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Research Report</p>
           {onRegenerate && (
-            <button onClick={onRegenerate} className="text-[10px] text-primary hover:underline">Regenerate</button>
+            <Button variant="ghost" size="sm" className="text-xs h-7" onClick={onRegenerate}>Regenerate</Button>
           )}
         </div>
-        <div className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{research}</div>
+        <div className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">{research}</div>
       </div>
     );
   }
 
   return (
     <div className="space-y-0">
-      <div className="flex items-center justify-between px-1 pb-2">
-        <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest">Persona Research Dossier</p>
-        {onRegenerate && (
-          <button onClick={onRegenerate} className="text-[10px] text-primary hover:underline">Regenerate</button>
-        )}
-      </div>
-
       {/* Section 1: Demographics */}
       <Section title="Demographics" number={1} defaultOpen>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3">
           <Field label="Age" value={data.demographics?.age_range} />
           <Field label="Gender" value={data.demographics?.gender} />
           <Field label="Marital Status" value={data.demographics?.marital_status} />
@@ -384,7 +441,7 @@ export function PersonaResearchReport({
       {/* Section 2: Desire Mapping */}
       <Section title="Desire Mapping" number={2}>
         <Field label="Primary Desire" value={data.desire_mapping?.primary_desire} />
-        <div className="space-y-1.5 pt-1">
+        <div className="space-y-2 pt-2">
           <ScoreBar label="Urgency" value={data.desire_mapping?.urgency ?? 0} />
           <ScoreBar label="Staying Power" value={data.desire_mapping?.staying_power ?? 0} />
           <ScoreBar label="Scope" value={data.desire_mapping?.scope ?? 0} />
@@ -398,20 +455,7 @@ export function PersonaResearchReport({
 
       {/* Section 3: Awareness */}
       <Section title="Awareness Mapping" number={3}>
-        <div className="flex items-center gap-3 pb-1">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">Stage</span>
-          <div className="flex gap-0.5">
-            {[1, 2, 3, 4, 5].map((s) => (
-              <div
-                key={s}
-                className={`w-8 h-2 rounded-full transition-colors ${
-                  s <= (data.awareness?.stage ?? 0) ? "bg-foreground/70" : "bg-muted"
-                }`}
-              />
-            ))}
-          </div>
-          <span className="text-xs text-foreground/70">{data.awareness?.stage_label}</span>
-        </div>
+        <StageIndicator stage={data.awareness?.stage ?? 0} label={data.awareness?.stage_label ?? ""} />
         <VOCQuote text={data.awareness?.current_beliefs_voc} />
         <Field label="Knows Root Cause" value={data.awareness?.knows_root_cause} />
         <VOCQuote text={data.awareness?.believes_solution_possible_voc} />
@@ -421,41 +465,28 @@ export function PersonaResearchReport({
 
       {/* Section 4: Sophistication */}
       <Section title="Sophistication Mapping" number={4}>
-        <div className="flex items-center gap-3 pb-1">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">Stage</span>
-          <div className="flex gap-0.5">
-            {[1, 2, 3, 4, 5].map((s) => (
-              <div
-                key={s}
-                className={`w-8 h-2 rounded-full transition-colors ${
-                  s <= (data.sophistication?.stage ?? 0) ? "bg-foreground/70" : "bg-muted"
-                }`}
-              />
-            ))}
-          </div>
-          <span className="text-xs text-foreground/70">{data.sophistication?.stage_label}</span>
-        </div>
-        <VOCList items={data.sophistication?.claims_heard_voc} />
-        <VOCList items={data.sophistication?.broken_promises_voc} />
+        <StageIndicator stage={data.sophistication?.stage ?? 0} label={data.sophistication?.stage_label ?? ""} />
+        <VOCList items={data.sophistication?.claims_heard_voc} label="Claims heard" />
+        <VOCList items={data.sophistication?.broken_promises_voc} label="Broken promises" />
         <Field label="Bold Claim Works" value={data.sophistication?.bold_claim_still_works} />
         <Field label="Strategy" value={data.sophistication?.strategy} />
       </Section>
 
       {/* Section 5: Psychological Elements */}
       <Section title="Psychological Elements" number={5}>
-        <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-bold pt-1">Desires</p>
+        <SubHeading>Desires</SubHeading>
         <VOCQuote text={data.psychological_elements?.desires?.surface_voc} />
         <Field label="Deeper" value={data.psychological_elements?.desires?.deeper} />
         <VOCQuote text={data.psychological_elements?.desires?.core_voc} />
 
-        <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-bold pt-3">Identity</p>
+        <SubHeading>Identity</SubHeading>
         <VOCQuote text={data.psychological_elements?.identifications?.aspirational_identity_voc} />
         <VOCQuote text={data.psychological_elements?.identifications?.shadow_identity_voc} />
         <VOCQuote text={data.psychological_elements?.identifications?.before_identity_voc} />
         <VOCQuote text={data.psychological_elements?.identifications?.after_identity_voc} />
-        <VOCList items={data.psychological_elements?.identifications?.people_like_me_signals_voc} />
+        <VOCList items={data.psychological_elements?.identifications?.people_like_me_signals_voc} label="&quot;People like me&quot; signals" />
 
-        <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-bold pt-3">Beliefs</p>
+        <SubHeading>Beliefs</SubHeading>
         <VOCQuote text={data.psychological_elements?.beliefs?.about_problem_voc} />
         <VOCQuote text={data.psychological_elements?.beliefs?.about_solutions_voc} />
         <VOCQuote text={data.psychological_elements?.beliefs?.about_self_voc} />
@@ -471,19 +502,19 @@ export function PersonaResearchReport({
         <VOCQuote text={data.pain_architecture?.coping_self_talk_voc} />
         <VOCQuote text={data.pain_architecture?.primary_emotion_voc} />
         <VOCQuote text={data.pain_architecture?.self_perception_voc} />
-        <VOCList items={data.pain_architecture?.avoidance_behaviors_voc} />
-        <VOCList items={data.pain_architecture?.physical_manifestations_voc} />
-        <VOCList items={data.pain_architecture?.social_avoidance_voc} />
+        <VOCList items={data.pain_architecture?.avoidance_behaviors_voc} label="Avoidance behaviors" />
+        <VOCList items={data.pain_architecture?.physical_manifestations_voc} label="Physical manifestations" />
+        <VOCList items={data.pain_architecture?.social_avoidance_voc} label="Social avoidance" />
       </Section>
 
       {/* Section 7: Failed Solutions */}
       <Section title="Failed Solutions History" number={7}>
-        <VOCList items={data.failed_solutions?.tried_list_voc} />
-        <VOCList items={data.failed_solutions?.why_each_failed_voc} />
+        <VOCList items={data.failed_solutions?.tried_list_voc} label="Tried" />
+        <VOCList items={data.failed_solutions?.why_each_failed_voc} label="Why they failed" />
         <Field label="Money Spent" value={data.failed_solutions?.money_spent} />
         <VOCQuote text={data.failed_solutions?.failure_impact_on_self_belief_voc} />
         <VOCQuote text={data.failed_solutions?.willingness_to_try_again_voc} />
-        <VOCList items={data.failed_solutions?.instant_dismissal_triggers_voc} />
+        <VOCList items={data.failed_solutions?.instant_dismissal_triggers_voc} label="Instant dismissal triggers" />
         <VOCQuote text={data.failed_solutions?.what_feels_different_voc} />
       </Section>
 
@@ -491,7 +522,7 @@ export function PersonaResearchReport({
       <Section title="Enemy Construction" number={8}>
         <VOCQuote text={data.enemy_construction?.external_enemy_voc} />
         <VOCQuote text={data.enemy_construction?.internal_enemy_voc} />
-        <VOCList items={data.enemy_construction?.specific_villains_voc} />
+        <VOCList items={data.enemy_construction?.specific_villains_voc} label="Specific villains" />
         <VOCQuote text={data.enemy_construction?.felt_injustice_voc} />
         <VOCQuote text={data.enemy_construction?.betrayal_experience_voc} />
       </Section>
@@ -529,12 +560,12 @@ export function PersonaResearchReport({
 
       {/* Section 12: Language and Voice */}
       <Section title="Language & Voice" number={12} defaultOpen>
-        <VOCList items={data.language_and_voice?.problem_words_voc} />
-        <VOCList items={data.language_and_voice?.outcome_words_voc} />
-        <VOCList items={data.language_and_voice?.failure_phrases_voc} />
-        <VOCList items={data.language_and_voice?.gets_me_phrases_voc} />
-        <VOCList items={data.language_and_voice?.condescending_words_voc} />
-        <VOCList items={data.language_and_voice?.tuned_out_words_voc} />
+        <VOCList items={data.language_and_voice?.problem_words_voc} label="Problem words" />
+        <VOCList items={data.language_and_voice?.outcome_words_voc} label="Outcome words" />
+        <VOCList items={data.language_and_voice?.failure_phrases_voc} label="Failure phrases" />
+        <VOCList items={data.language_and_voice?.gets_me_phrases_voc} label="&quot;Gets me&quot; phrases" />
+        <VOCList items={data.language_and_voice?.condescending_words_voc} label="Condescending words" />
+        <VOCList items={data.language_and_voice?.tuned_out_words_voc} label="Tuned-out words" />
         <VOCQuote text={data.language_and_voice?.lowest_moment_self_talk_voc} />
         <VOCQuote text={data.language_and_voice?.when_it_works_voc} />
       </Section>
@@ -542,7 +573,7 @@ export function PersonaResearchReport({
       {/* Section 13: Proof Triggers */}
       <Section title="Proof & Persuasion" number={13}>
         <Field label="Trusted Proof" value={data.proof_triggers?.trusted_proof_types?.join(", ")} />
-        <VOCList items={data.proof_triggers?.distrusted_proof_voc} />
+        <VOCList items={data.proof_triggers?.distrusted_proof_voc} label="Distrusted proof" />
         <Field label="Trusted Sources" value={data.proof_triggers?.trusted_sources?.join(", ")} />
         <VOCQuote text={data.proof_triggers?.testimonial_must_say_voc} />
         <VOCQuote text={data.proof_triggers?.guarantee_language_voc} />
