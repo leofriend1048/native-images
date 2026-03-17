@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionFromRequest, getImpersonatorSessionFromRequest, signToken, startImpersonation, stopImpersonation } from "@/lib/auth";
+import { getSessionFromRequest, getImpersonatorSessionFromRequest, signToken } from "@/lib/auth";
 import { getUserById } from "@/lib/db";
 
 function isGlobalAdmin(session: { email: string; isAdmin: boolean }) {
@@ -42,9 +42,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No session" }, { status: 401 });
   }
 
-  await startImpersonation(targetToken, adminToken);
+  const res = NextResponse.json({ success: true, email: targetUser.email });
 
-  return NextResponse.json({ success: true, email: targetUser.email });
+  // Save admin's real session
+  res.cookies.set("impersonator_session", adminToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 7,
+    path: "/",
+  });
+  // Swap to target user's session
+  res.cookies.set("session", targetToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 7,
+    path: "/",
+  });
+
+  return res;
 }
 
 // DELETE — stop impersonation
@@ -54,7 +71,21 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Not impersonating" }, { status: 400 });
   }
 
-  await stopImpersonation();
+  const adminToken = req.cookies.get("impersonator_session")?.value;
+  const res = NextResponse.json({ success: true });
 
-  return NextResponse.json({ success: true });
+  if (adminToken) {
+    // Restore admin session
+    res.cookies.set("session", adminToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7,
+      path: "/",
+    });
+    // Remove impersonator cookie
+    res.cookies.delete("impersonator_session");
+  }
+
+  return res;
 }
