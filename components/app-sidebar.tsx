@@ -6,6 +6,7 @@ import {
   SquarePen,
   GalleryHorizontal,
   Layers,
+  Users,
   Shield,
   Settings,
   LogOut,
@@ -68,6 +69,7 @@ export function AppSidebar({ workspaces, activeWorkspaceSlug, user, workspaceRol
   const navItems = [
     { title: "Gallery", href: `${base}/gallery`, icon: GalleryHorizontal },
     { title: "Decks", href: `${base}/decks`, icon: Layers },
+    { title: "Personas", href: `${base}/personas`, icon: Users },
   ];
 
   const handleLogout = async () => {
