@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   const res = NextResponse.json({ success: true, email: targetUser.email });
 
   // Save admin's real session
-  res.cookies.set("impersonator_session", adminToken, {
+  res.cookies.set("impersonator-session", adminToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -71,7 +71,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Not impersonating" }, { status: 400 });
   }
 
-  const adminToken = req.cookies.get("impersonator_session")?.value;
+  const adminToken = req.cookies.get("impersonator-session")?.value;
   const res = NextResponse.json({ success: true });
 
   if (adminToken) {
@@ -84,7 +84,7 @@ export async function DELETE(req: NextRequest) {
       path: "/",
     });
     // Remove impersonator cookie
-    res.cookies.delete("impersonator_session");
+    res.cookies.delete("impersonator-session");
   }
 
   return res;
