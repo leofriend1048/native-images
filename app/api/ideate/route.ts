@@ -164,23 +164,51 @@ Every prompt MUST end with this exact negative block (always the last thing):
 
 ━━━ NEVER include text, timestamps, watermarks, captions, or UI elements in the image ━━━
 
+━━━ "IF YOU KNOW, YOU KNOW" — THE CONCEPT PHILOSOPHY ━━━
+This is the most important creative direction. Every image must be so hyper-specific to the persona's REAL lived experience that:
+- The target persona sees it and physically reacts — "oh my god that's literally me"
+- Someone outside the persona scrolls right past it — it means nothing to them
+- It depicts a PRIVATE MOMENT she has never seen in an ad before — the thing she does when nobody's watching, the scene she'd never post but instantly recognizes
+- It uses the EXACT objects, surfaces, lighting, body language, and environment details from HER world — not a generic "woman in bathroom" but "the specific cluttered corner of her specific bathroom at the specific time of day when this hits"
+
+THE SPECIFICITY TEST — if your concept could apply to "anyone," it fails. It must be so narrow that it excludes 95% of people and DEEPLY resonates with the 5% who are your persona.
+
+BAD (too generic): "woman looking in mirror, frustrated with skin"
+GOOD (IYKYK): "extreme close-up of her finger pressing into the skin next to her nose, checking if that dark spot is getting bigger, harsh overhead bathroom fluorescent, 11pm, face half-washed with cleanser still on one cheek"
+
+BAD: "woman holding skincare product, smiling"
+GOOD: "POV looking down at her lap in bed at midnight, phone in one hand showing an Amazon cart with 3 serums, other hand touching her jawline, blue phone screen glow on her face, partner asleep next to her"
+
+BAD: "cluttered bathroom counter with products"
+GOOD: "the specific graveyard of half-used serums shoved to the back of her medicine cabinet — the $60 one she used twice, the one her friend swore by, the one from the TikTok ad — all abandoned, caps crusted"
+
+HOW TO GENERATE "IYKYK" CONCEPTS FROM VOC RESEARCH:
+1. Find the MIRROR MOMENTS in the research — the exact scene where pain hits hardest. Depict THAT scene, not a cleaned-up version of it
+2. Find the PRIVATE BEHAVIORS — what she does to cope, hide, check, obsess. These are scenes she's never seen depicted in advertising and will be shocked to see
+3. Find the FAILED SOLUTION ARTIFACTS — the physical evidence of everything she's tried. The graveyard of products, the drawer of tools, the cabinet of shame
+4. Find the MICRO-GESTURES — the specific physical thing she does (pressing, pulling, squinting, covering, tilting her head, holding her phone at arm's length to check). These tiny actions are recognition triggers
+5. Find the TIME + PLACE — not just "bathroom" but the exact time of day and circumstance. 6am before anyone wakes up. 11pm doom-scrolling. 2pm in the car checking the rearview mirror before school pickup. The specificity of WHEN is as powerful as WHERE
+6. Find the EMOTIONAL AFTERMATH — what she does RIGHT AFTER the mirror moment. Cancels the photo. Puts the phone down. Pulls her hair forward. Changes her outfit. These are the moments after the pain that nobody depicts
+
 VARIATION STRATEGY — vary one dimension at a time, keeping product/persona/angle locked:
-- Same problem, different environment (nightstand vs bathroom vs car vs office)
-- Same environment, different lighting scenario (flash vs overhead fluorescent vs window)
-- Same problem, different emotional intensity (mild annoyance vs total desperation)
-- Same problem, different moment in time (onset vs peak suffering vs aftermath)
-- Same product/problem, framed as competitor comparison
+- Same pain, different IYKYK moment (the bathroom check vs the car mirror vs the Zoom call preview)
+- Same moment, different lighting scenario (flash vs overhead fluorescent vs phone screen glow)
+- Same pain, different emotional stage (first noticing vs obsessing vs resignation vs desperate 2am research)
+- Same problem, different physical evidence (the products, the tools, the browser history, the Amazon orders)
+- Same pain, framed through the OBJECTS she interacts with (not the person — just the evidence)
 
 ADDITIONAL CONCEPTS — suggest 2-3 adjacent angles for the SAME product and persona:
-- Different USP for same persona (if angle was "suffering", suggest "discovery" or "competitor comparison")
-- Different problem the same persona faces that the same product solves
+- The BEFORE moment nobody shows (the private checking, prodding, comparing)
+- The COPING moment (what she does to hide it — makeup, angles, filters, avoiding)
+- The BREAKING POINT (the moment she decides to try something new — the late-night search, the cart-fill, the "I can't do this anymore")
 - Never drift to a different product or a different persona
 
 VOC RESEARCH — when research data is provided in the concept:
-- USE the exact words, phrases, and emotional language from real customer reviews/posts
-- GROUND your visual concepts in the real trigger moments and pain points identified
-- The research tells you what real people actually say and feel — translate that into imagery
-- Prefer VOC-sourced scenarios over generic/assumed ones`;
+- MINE the research for mirror moments, private behaviors, micro-gestures, and exact objects/settings
+- USE the persona's EXACT WORDS as inspiration for scenes — if she says "I literally can't look in the mirror without wanting to cry," your image depicts the moment right before she looks away
+- The research is a goldmine of specificity — every quote is a potential image concept
+- Translate LANGUAGE into IMAGERY: "I've tried everything" → image of the product graveyard. "Nobody understands" → image of her alone in the bathroom at 2am. "I'm so tired of this" → image of her hand resting on the counter, head slightly bowed, not even looking at the mirror
+- Prefer the UNCOMFORTABLE TRUTH over the COMFORTABLE GENERIC — the image should make the persona feel slightly exposed, like someone saw her private moment`;
 
 // ─── Route ───────────────────────────────────────────────────────────────────
 

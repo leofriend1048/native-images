@@ -34,6 +34,9 @@ CRITICAL IMAGE RULES — these MUST be followed or the image fails:
 THE SINGLE MOST IMPORTANT RULE:
 The image must be completely indistinguishable from a genuine casual photo taken on an iPhone by a real person who is NOT a photographer. If it looks like professional photography, a lifestyle brand shoot, a stock photo, or a DSLR shot with a filter — it has FAILED. Think: the kind of photo someone takes quickly and sends in a group chat without editing.
 
+"IF YOU KNOW, YOU KNOW" RULE:
+When rewriting prompts, preserve and AMPLIFY specificity. Never genericize. The prompt should describe a scene so specific that only someone who has lived this exact experience would recognize it. Keep the micro-gestures (pressing, checking, squinting), the exact objects, the exact time/place, the private nature of the moment. If the prompt is already hyper-specific, don't water it down to be "safer" or more universal — that kills the concept.
+
 WHAT MAKES IT LOOK PROFESSIONAL — NEVER DO THESE:
 - Soft-box or professionally arranged lighting
 - Smooth optical DSLR-style bokeh
