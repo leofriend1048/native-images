@@ -14,7 +14,8 @@ const NFMD_WORKSPACE_ID = "ws_nfmd";
 export { MTB_WORKSPACE_ID, NFMD_WORKSPACE_ID };
 
 export async function initSchema() {
-  await client.executeMultiple(`
+  // Execute each CREATE TABLE individually to avoid OOM from large batched executeMultiple
+  await client.execute(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
@@ -23,8 +24,9 @@ export async function initSchema() {
       is_admin INTEGER DEFAULT 0,
       default_workspace_id TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-
+    )
+  `);
+  await client.execute(`
     CREATE TABLE IF NOT EXISTS invites (
       id TEXT PRIMARY KEY,
       email TEXT NOT NULL,
@@ -32,8 +34,9 @@ export async function initSchema() {
       used INTEGER DEFAULT 0,
       workspace_id TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-
+    )
+  `);
+  await client.execute(`
     CREATE TABLE IF NOT EXISTS workspaces (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -43,8 +46,9 @@ export async function initSchema() {
       encryption_iv TEXT,
       created_by TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-
+    )
+  `);
+  await client.execute(`
     CREATE TABLE IF NOT EXISTS workspace_members (
       id TEXT PRIMARY KEY,
       workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
@@ -52,8 +56,9 @@ export async function initSchema() {
       role TEXT NOT NULL DEFAULT 'member',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(workspace_id, user_id)
-    );
-
+    )
+  `);
+  await client.execute(`
     CREATE TABLE IF NOT EXISTS chats (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -63,8 +68,9 @@ export async function initSchema() {
       messages TEXT NOT NULL DEFAULT '[]',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-
+    )
+  `);
+  await client.execute(`
     CREATE TABLE IF NOT EXISTS generated_images (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -75,8 +81,9 @@ export async function initSchema() {
       model TEXT NOT NULL,
       aspect_ratio TEXT NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-
+    )
+  `);
+  await client.execute(`
     CREATE TABLE IF NOT EXISTS user_personas (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -86,8 +93,9 @@ export async function initSchema() {
       research TEXT,
       research_status TEXT DEFAULT 'none',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-
+    )
+  `);
+  await client.execute(`
     CREATE TABLE IF NOT EXISTS creative_decks (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -97,13 +105,14 @@ export async function initSchema() {
       image_ids TEXT NOT NULL DEFAULT '[]',
       active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-
+    )
+  `);
+  await client.execute(`
     CREATE TABLE IF NOT EXISTS user_logins (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
+    )
   `);
 
   // Migrations: add columns to existing installations (catch-ignore pattern)
