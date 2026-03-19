@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
-import { getSession, getImpersonatorSession, getActiveWorkspaceId, setActiveWorkspaceCookie } from "@/lib/auth";
+import { getSession, getImpersonatorSession } from "@/lib/auth";
 import { getWorkspacesByUserId, getWorkspaceMembership, getUserById, getWorkspaceBySlug, getChatsByUserAndWorkspace } from "@/lib/db";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
+import { WorkspaceCookieSync } from "@/components/workspace-cookie-sync";
 
 export default async function ProtectedLayout({
   children,
@@ -43,13 +44,6 @@ export default async function ProtectedLayout({
     redirect("/login");
   }
 
-  // Keep the active-workspace cookie in sync with the URL slug so API routes
-  // (which read the cookie, not the URL) always target the correct workspace.
-  const activeWsId = await getActiveWorkspaceId();
-  if (activeWsId !== workspace.id) {
-    await setActiveWorkspaceCookie(workspace.id);
-  }
-
   const [dbUser, recentChats] = await Promise.all([
     getUserById(session.userId),
     getChatsByUserAndWorkspace(session.userId, workspace.id),
@@ -64,6 +58,7 @@ export default async function ProtectedLayout({
 
   return (
     <SidebarProvider>
+      <WorkspaceCookieSync workspaceId={workspace.id} />
       <AppSidebar
         workspaces={workspaces.map((w) => ({ id: w.id, name: w.name, slug: w.slug }))}
         activeWorkspaceSlug={slug}
