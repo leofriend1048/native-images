@@ -1263,7 +1263,14 @@ function ChatSession({
     // errors caused by the previous narrow per-tool predicate.
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     onError: (err) => {
-      toast.error(err.message || "Something went wrong");
+      const msg = err.message || "";
+      if (msg.includes("rate limit") || msg.includes("429")) {
+        toast.error("Rate limited — please wait a moment and try again.");
+      } else if (msg.includes("Unauthorized") || msg.includes("401")) {
+        toast.error("Session expired — please refresh the page.");
+      } else {
+        toast.error(msg || "Something went wrong");
+      }
       setPhase("idle");
     },
     onFinish: ({ messages: finishedMessages }) => {
