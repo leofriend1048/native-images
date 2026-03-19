@@ -245,41 +245,51 @@ export async function POST(req: Request) {
     contextPrompt += `\n\n━━━ VOC RESEARCH (real customer language — use these exact words and scenarios) ━━━\n${research}`;
   }
 
-  // ── Step 1: clarification check ──────────────────────────────────────────────
-  // Dedicated call whose only job is deciding what questions are needed.
-  // Separating this prevents Claude from "helpfully" skipping to content.
-  // Only run when `answers` is absent entirely — if the user explicitly
-  // skipped (answers = {}), we still bypass clarification and go straight
-  // to ideation so "Skip" doesn't loop back to the same question.
-  if (answers === undefined) {
-    const { object: clarification } = await generateObject({
+  try {
+    // ── Step 1: clarification check ────────────────────────────────────────────
+    // Dedicated call whose only job is deciding what questions are needed.
+    // Separating this prevents Claude from "helpfully" skipping to content.
+    // Only run when `answers` is absent entirely — if the user explicitly
+    // skipped (answers = {}), we still bypass clarification and go straight
+    // to ideation so "Skip" doesn't loop back to the same question.
+    if (answers === undefined) {
+      const { object: clarification } = await generateObject({
+        model: anthropic("claude-sonnet-4-5"),
+        system: CLARIFICATION_SYSTEM_PROMPT,
+        prompt: contextPrompt,
+        schema: ClarificationSchema,
+      });
+
+      if (clarification.questions.length > 0) {
+        const response: ClarificationResult = {
+          type: "clarify",
+          questions: clarification.questions,
+        };
+        return new Response(JSON.stringify(response), {
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // ── Step 2: ideation ───────────────────────────────────────────────────────
+    const { object: ideation } = await generateObject({
       model: anthropic("claude-sonnet-4-5"),
-      system: CLARIFICATION_SYSTEM_PROMPT,
+      system: IDEATION_SYSTEM_PROMPT,
       prompt: contextPrompt,
-      schema: ClarificationSchema,
+      schema: IdeationSchema,
     });
 
-    if (clarification.questions.length > 0) {
-      const response: ClarificationResult = {
-        type: "clarify",
-        questions: clarification.questions,
-      };
-      return new Response(JSON.stringify(response), {
-        headers: { "Content-Type": "application/json" },
-      });
-    }
+    const response: IdeationResult = { type: "ideate", ...ideation };
+    return new Response(JSON.stringify(response), {
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const isRateLimit = message.includes("rate limit") || message.includes("429");
+    console.error("[ideate]", isRateLimit ? "Rate limited" : "Error:", message);
+    return new Response(
+      JSON.stringify({ error: isRateLimit ? "Rate limited — please wait a moment and try again." : "Ideation failed" }),
+      { status: isRateLimit ? 429 : 500, headers: { "Content-Type": "application/json" } },
+    );
   }
-
-  // ── Step 2: ideation ─────────────────────────────────────────────────────────
-  const { object: ideation } = await generateObject({
-    model: anthropic("claude-sonnet-4-5"),
-    system: IDEATION_SYSTEM_PROMPT,
-    prompt: contextPrompt,
-    schema: IdeationSchema,
-  });
-
-  const response: IdeationResult = { type: "ideate", ...ideation };
-  return new Response(JSON.stringify(response), {
-    headers: { "Content-Type": "application/json" },
-  });
 }

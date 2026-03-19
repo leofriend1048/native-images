@@ -1505,8 +1505,13 @@ function ChatSession({
       } catch (err) {
         if ((err as Error).name === "AbortError") return;
         console.error("Ideation error:", err);
-        toast.error("Failed to ideate — generating directly");
-        triggerGeneration(concept);
+        const errMsg = (err as Error).message || "";
+        if (errMsg.includes("rate limit") || errMsg.includes("429") || errMsg.includes("Rate limited")) {
+          toast.error("Rate limited — please wait a moment and try again.");
+        } else {
+          toast.error("Failed to ideate — generating directly");
+          triggerGeneration(concept);
+        }
       } finally {
         ideationAbortRef.current = null;
       }
