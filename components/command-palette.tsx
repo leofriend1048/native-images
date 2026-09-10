@@ -29,7 +29,9 @@ type ModelId =
   | "google/nano-banana-pro"
   | "google/nano-banana-2"
   | "bytedance/seedream-4.5"
-  | "ideogram-ai/ideogram-v3-turbo";
+  | "ideogram-ai/ideogram-v3-turbo"
+  | "openai/gpt-image-2.5-sunburst"
+  | "openai/gpt-image-2.5-flare";
 
 interface AnyToolPart {
   type: string;
@@ -45,6 +47,8 @@ const MODELS: { id: ModelId; label: string; provider: string }[] = [
   { id: "google/nano-banana-pro",        label: "Nano Banana Pro",  provider: "google"    },
   { id: "bytedance/seedream-4.5",        label: "Seedream 4.5",     provider: "bytedance" },
   { id: "ideogram-ai/ideogram-v3-turbo", label: "Ideogram v3 Turbo", provider: "ideogram" },
+  { id: "openai/gpt-image-2.5-sunburst", label: "GPT-Image 2.5 Sunburst", provider: "openai" },
+  { id: "openai/gpt-image-2.5-flare",    label: "GPT-Image 2.5 Flare",    provider: "openai" },
 ];
 
 function getLastImageUrl(messages: UIMessage[]): string | null {

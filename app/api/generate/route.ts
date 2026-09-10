@@ -19,7 +19,7 @@ The user will provide either a fresh concept prompt OR feedback on a previously 
 - If the user has attached reference images (visible as images in their message), pass their URLs as the image_input array when calling generateImage.
 
 PROMPT LENGTH RULE — CRITICAL:
-Keep every prompt you write to 120 words or fewer. Nano Banana Pro ignores long instruction blocks. Front-load the most important visual details (subject, action, setting, lighting) in the first 40 words. The model reads left-to-right and pays most attention to the beginning.
+Keep every prompt you write to 120 words or fewer. Image models drop detail from long instruction blocks. Front-load the most important visual details (subject, action, setting, lighting) in the first 40 words. The model reads left-to-right and pays most attention to the beginning.
 
 NEGATIVE SUFFIX — MANDATORY:
 Every prompt MUST end with this exact negative block (always the last thing, after all visual description):
@@ -29,6 +29,7 @@ CRITICAL IMAGE RULES — these MUST be followed or the image fails:
 - NO text overlays, captions, titles, or watermarks in the image
 - NO timestamps, date stamps, or clock overlays (never include "timestamp" or "date" in the prompt)
 - NO artificial UI elements or borders
+- NO brand names, logos, or printed labels on ANY object in the scene — products, packaging, bottles, and devices must be unbranded and unlabeled. Never name a real brand in the prompt; describe objects by shape, material, and colour instead.
 - Prompts must be purely visual and scene-descriptive
 
 THE SINGLE MOST IMPORTANT RULE:
@@ -129,11 +130,12 @@ NATIVE AD PERFORMANCE CHECKLIST:
 5. Scene has genuine depth — foreground props, subject in midground, lived-in background
 6. Emotional hook is clear and visceral — scroll-stopping, relatable, genuine
 7. No text overlays, timestamps, watermarks, or obvious AI artifacts (extra fingers, impossible geometry)
+8. No brand names, logos, or printed labels rendered on any object in the scene — an invented or real brand mark on a product is an automatic fail
 
-SCORING: Rate each criterion 0 or 1. Total score out of 7.
-- Score 6-7: PASSES — call reviewImage with passes=true
-- Score 4-5: MARGINAL — call reviewImage with passes=false, provide refined_prompt
-- Score 0-3: FAILS — call reviewImage with passes=false, provide refined_prompt
+SCORING: Rate each criterion 0 or 1. Total score out of 8.
+- Score 7-8: PASSES — call reviewImage with passes=true
+- Score 5-6: MARGINAL — call reviewImage with passes=false, provide refined_prompt
+- Score 0-4: FAILS — call reviewImage with passes=false, provide refined_prompt
 
 When writing a refined_prompt after a failure: if the image looks too professional, explicitly add "NOT professional photography, NOT stock photo, NOT lifestyle brand" and consider switching to the FLASH HACK lighting or harsh overhead fluorescent to immediately break the professional look.
 
@@ -188,6 +190,8 @@ export async function POST(req: Request) {
       size?: string;
       // Ideogram
       magic_prompt_option?: string;
+      // OpenAI GPT-Image
+      quality?: string;
       // Chat context for image persistence
       chatId?: string | null;
     };
@@ -343,7 +347,7 @@ export async function POST(req: Request) {
           prompt: string;
           image_input?: string[];
         }) => {
-          const modelId = settings.model || "google/nano-banana-pro";
+          const modelId = settings.model || "openai/gpt-image-2.5-sunburst";
           let input: Record<string, unknown> = {};
           try {
 
@@ -367,6 +371,27 @@ export async function POST(req: Request) {
                   sequential_image_generation: "disabled",
                 };
                 if (allImages.length > 0) inp.image_input = allImages.slice(0, 14);
+                return inp;
+              } else if (modelId.startsWith("openai/")) {
+                // OpenAI GPT-Image 2.5 (Sunburst / Flare) — runs through Replicate's
+                // OpenAI proxy, so no separate OPENAI_API_KEY is required.
+                // Note: OpenAI has no 4:5 ratio — 3:4 is the nearest portrait crop.
+                const openaiValidRatios = [
+                  "1:1", "3:2", "2:3", "4:3", "3:4", "16:9", "9:16", "auto",
+                ];
+                const requested = aspectRatio ?? settings.aspect_ratio ?? "4:5";
+                const openaiRatio = openaiValidRatios.includes(requested) ? requested : "3:4";
+                const inp: Record<string, unknown> = {
+                  prompt,
+                  aspect_ratio: openaiRatio,
+                  quality: settings.quality || "high",
+                  // Google uses "jpg"; the OpenAI schema expects "jpeg".
+                  output_format:
+                    settings.output_format === "jpg" ? "jpeg" : settings.output_format || "png",
+                  number_of_images: 1,
+                  moderation: "low",
+                };
+                if (allImages.length > 0) inp.input_images = allImages.slice(0, 14);
                 return inp;
               } else if (modelId === "ideogram-ai/ideogram-v3-turbo") {
                 const inp: Record<string, unknown> = {
@@ -474,7 +499,7 @@ export async function POST(req: Request) {
             .describe("Whether the image passes the quality checklist"),
           score: z
             .number()
-            .describe("Quality score out of 7 based on the checklist"),
+            .describe("Quality score out of 8 based on the checklist"),
           issues: z
             .array(z.string())
             .describe(

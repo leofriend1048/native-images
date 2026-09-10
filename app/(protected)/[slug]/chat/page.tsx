@@ -179,7 +179,7 @@ interface ReviewResult {
 }
 
 interface GenerationSettings {
-  model: "google/nano-banana-pro" | "google/nano-banana-2" | "bytedance/seedream-4.5" | "ideogram-ai/ideogram-v3-turbo";
+  model: "google/nano-banana-pro" | "google/nano-banana-2" | "bytedance/seedream-4.5" | "ideogram-ai/ideogram-v3-turbo" | "openai/gpt-image-2.5-sunburst" | "openai/gpt-image-2.5-flare";
   aspect_ratio: string;
   batch_count: 1 | 2 | 4;
   // Google models
@@ -190,6 +190,8 @@ interface GenerationSettings {
   size: string;
   // Ideogram
   magic_prompt_option: string;
+  // OpenAI GPT-Image
+  quality: string;
 }
 
 interface ClarificationQuestion {
@@ -1082,14 +1084,16 @@ function ChatSession({
   onPendingConceptConsumed?: () => void;
 }) {
   const [settings, setSettings] = useState<GenerationSettings>({
-    model: "google/nano-banana-pro",
-    aspect_ratio: "4:5",
+    model: "openai/gpt-image-2.5-sunburst",
+    // Sunburst has no 4:5 — 3:4 is the nearest portrait ratio it supports
+    aspect_ratio: "3:4",
     batch_count: 1,
     resolution: "1K",
     output_format: "jpg",
     safety_filter_level: "block_only_high",
     size: "2K",
     magic_prompt_option: "Auto",
+    quality: "high",
   });
   const [checkpoints, setCheckpoints] = useState<Set<string>>(new Set());
   const lastSuccessId = useRef<string | null>(null);
@@ -1899,6 +1903,7 @@ function ChatSession({
                         provider={
                           settings.model.startsWith("google/") ? "google"
                           : settings.model.startsWith("bytedance/") ? "bytedance"
+                          : settings.model.startsWith("openai/") ? "openai"
                           : "ideogram"
                         }
                         className="size-3.5"
@@ -1906,6 +1911,8 @@ function ChatSession({
                       {settings.model === "google/nano-banana-2" ? "Nano Banana 2"
                         : settings.model === "bytedance/seedream-4.5" ? "Seedream 4.5"
                         : settings.model === "ideogram-ai/ideogram-v3-turbo" ? "Ideogram v3 Turbo"
+                        : settings.model === "openai/gpt-image-2.5-sunburst" ? "GPT-Image 2.5 Sunburst"
+                        : settings.model === "openai/gpt-image-2.5-flare" ? "GPT-Image 2.5 Flare"
                         : "Nano Banana Pro"}
                     </Button>
                   </ModelSelectorTrigger>
@@ -1941,6 +1948,37 @@ function ChatSession({
                             <ModelSelectorLogoGroup>
                               <ModelSelectorLogo provider="google" />
                               <ModelSelectorName>Nano Banana 2</ModelSelectorName>
+                            </ModelSelectorLogoGroup>
+                          </ModelSelectorItem>
+                        </ModelSelectorGroup>
+                        <ModelSelectorGroup heading="OpenAI">
+                          <ModelSelectorItem
+                            value="gpt-image-2.5-sunburst"
+                            selected={settings.model === "openai/gpt-image-2.5-sunburst"}
+                            onSelect={() => setSettings((s) => ({
+                              ...s,
+                              model: "openai/gpt-image-2.5-sunburst",
+                              // OpenAI has no 4:5; nearest portrait ratio is 3:4
+                              aspect_ratio: s.aspect_ratio === "4:5" ? "3:4" : s.aspect_ratio,
+                            }))}
+                          >
+                            <ModelSelectorLogoGroup>
+                              <ModelSelectorLogo provider="openai" />
+                              <ModelSelectorName>GPT-Image 2.5 Sunburst</ModelSelectorName>
+                            </ModelSelectorLogoGroup>
+                          </ModelSelectorItem>
+                          <ModelSelectorItem
+                            value="gpt-image-2.5-flare"
+                            selected={settings.model === "openai/gpt-image-2.5-flare"}
+                            onSelect={() => setSettings((s) => ({
+                              ...s,
+                              model: "openai/gpt-image-2.5-flare",
+                              aspect_ratio: s.aspect_ratio === "4:5" ? "3:4" : s.aspect_ratio,
+                            }))}
+                          >
+                            <ModelSelectorLogoGroup>
+                              <ModelSelectorLogo provider="openai" />
+                              <ModelSelectorName>GPT-Image 2.5 Flare</ModelSelectorName>
                             </ModelSelectorLogoGroup>
                           </ModelSelectorItem>
                         </ModelSelectorGroup>
@@ -1987,7 +2025,8 @@ function ChatSession({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {settings.model !== "bytedance/seedream-4.5" && (
+                    {settings.model !== "bytedance/seedream-4.5" &&
+                      !settings.model.startsWith("openai/") && (
                       <SelectItem value="4:5">4:5 (native)</SelectItem>
                     )}
                     <SelectItem value="1:1">1:1 (square)</SelectItem>
@@ -2073,6 +2112,41 @@ function ChatSession({
                       <SelectItem value="4K">4K</SelectItem>
                     </SelectContent>
                   </Select>
+                )}
+
+                {/* OpenAI GPT-Image: quality + output format */}
+                {settings.model.startsWith("openai/") && (
+                  <>
+                    <Select
+                      value={settings.quality}
+                      onValueChange={(v) => setSettings((s) => ({ ...s, quality: v }))}
+                    >
+                      <SelectTrigger className="h-7 text-xs w-auto min-w-[110px]">
+                        <span className="text-muted-foreground">Quality:&nbsp;</span><SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">Auto</SelectItem>
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="xhigh">X-High</SelectItem>
+                        <SelectItem value="max">Max</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={settings.output_format}
+                      onValueChange={(v) => setSettings((s) => ({ ...s, output_format: v }))}
+                    >
+                      <SelectTrigger className="h-7 text-xs w-auto min-w-[70px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="jpg">JPEG</SelectItem>
+                        <SelectItem value="png">PNG</SelectItem>
+                        <SelectItem value="webp">WebP</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </>
                 )}
 
                 {/* Ideogram: magic prompt */}
