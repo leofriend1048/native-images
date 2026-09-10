@@ -10,6 +10,8 @@ const MODEL_LABELS: Record<string, string> = {
   "google/nano-banana-2": "Nano Banana 2",
   "bytedance/seedream-4.5": "Seedream 4.5",
   "ideogram-ai/ideogram-v3-turbo": "Ideogram v3",
+  "openai/gpt-image-2.5-sunburst": "GPT-Image 2.5 Sunburst",
+  "openai/gpt-image-2.5-flare": "GPT-Image 2.5 Flare",
 };
 
 // ─── Lightbox ─────────────────────────────────────────────────────────────────

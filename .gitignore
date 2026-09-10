@@ -50,3 +50,6 @@ data/app.db-wal
 data/*.db
 data/*.db-shm
 data/*.db-wal
+
+# local model eval output
+/eval-out/
